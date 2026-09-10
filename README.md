@@ -2,7 +2,7 @@
 
 # 中国专利技能套件（智慧芽 MCP 增强）
 
-> 专利点挖掘与交底书（发明/实用/外观）编写，已有交底改写成申请文件，交底到申请可以一起做，**智慧芽 MCP 语义检索 + 著录检索 + 同族/引证分析**，通俗解读专利，对照审查口径出政策简报，辅助审查答复。
+> 专利点挖掘与交底书（发明/实用/外观）编写，已有交底改写成申请文件，交底到申请可以一起做，**智慧芽 MCP 语义检索 + 著录检索 + 同族/引证分析**，通俗解读专利，对照审查口径出政策简报，辅助审查答复，**全景分析与 FTO 风险检索**。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
@@ -111,6 +111,18 @@
 <td>对照国知局官网近期政策消息出人话简报，分析技能里哪些交底技巧、申请书式可能过时</td>
 <td>「政策简报」</td>
 </tr>
+<tr>
+<td nowrap><a href="skills/patent-landscape/SKILL.md"><code>patent-landscape</code></a></td>
+<td nowrap>全景分析</td>
+<td><strong>智慧芽 MCP</strong>：技术赛道检索→趋势/构成/申请人排名/技术地图/生命周期/合作网络多维度分析，生成竞争格局报告</td>
+<td>「全景分析」·「竞争格局」</td>
+</tr>
+<tr>
+<td nowrap><a href="skills/patent-fto/SKILL.md"><code>patent-fto</code></a></td>
+<td nowrap>FTO 自由实施</td>
+<td><strong>智慧芽 MCP</strong>：产品/技术方案→风险专利识别+权要逐项对比+风险等级+规避方向；支持发明和外观设计 FTO</td>
+<td>「FTO」·「自由实施」</td>
+</tr>
 </tbody>
 </table>
 
@@ -122,11 +134,14 @@
 
 | MCP Server | 关键工具 | 用途 |
 |------------|---------|------|
-| `core-patents` | `search_patents`, `bibliography`, `family`, `forward_citation` | 专利检索、著录、同族与引证 |
+| `core-patents` | `search_patents`, `bibliography`, `family`, `forward_citation`, `claims`, `claim_translated` | 专利检索、著录、同族、引证、权要全文 |
 | `patsnap-search` | `patsnap_search`, `patsnap_fetch` | 语义检索（专利+文献）、详情获取 |
 | `patent-status` | `legal_data`, `fee_info` | 法律状态与年费 |
-| `patent-landscape` | `search_patents_v3`, `detail_aggregation` | 全景分析（二期） |
-| `patsnap-ip-searching` | `fto_review`, `novelty_search` | FTO 与查新（二期） |
+| `patent-landscape` | `search_patents_v3`, `trend`, `technology_constitute`, `applicant_rank`, `domain_map`, `technology_life_cycle` | 全景分析：趋势/构成/申请人/技术地图/生命周期 |
+| `patsnap-ip-searching` | `fto_review`, `design_fto`, `novelty_search`, `get_task` | FTO 检索、外观 FTO、查新分析 |
+| `novelty-search-lite` | `novelty_lite_search`, `novelty_feature_extract`, `novelty_feature_comparison` | 深度查新：特征提取与逐项对比 |
+| `patent-analysis` | `aggregate_patents`, `mine_patent_text` | 专利聚合统计与文本挖掘 |
+| `patent-visual` | `trends`, `applicant_ranking`, `word_cloud` | 可视化图表生成 |
 
 **双通道设计**：有 MCP 时走智慧芽 API（优先），无 MCP 时降级到原 Playwright CNIPA 爬取（回退）。两条路径都可用，确保兼容性。
 

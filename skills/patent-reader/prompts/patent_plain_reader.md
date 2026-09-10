@@ -111,7 +111,37 @@ python skills/patent-reader/tools/extract/extract_patent_figures.py \
 - `quality=review` 默认 placeholder；加 `--include-review`（抽取或入库）可按 insert 处理。
 - 写笔记第六节：`insert` → `![[images/…]]`；其余 → `[!figure]`。
 
-### 第 1.5 步：技术落地线索 + 可视化草稿
+### 第 1.5 步（可选）：智慧芽 MCP 同族/引证/法律状态富化
+
+MCP 可用时，在取证后、写笔记前，用以下 MCP 工具补全专利维度数据，写入 `outputs/patent_reader/${RUN}/mcp_enrichment.json`：
+
+```
+# 著录详情
+tool_load(server="core-patents", tool_name="bibliography")
+tool_invoke(tool="mcp_core-patents__bibliography", arguments={"patent_id": "<patent_id>"})
+
+# 法律状态
+tool_load(server="core-patents", tool_name="get_patent_legal_status")
+tool_invoke(tool="mcp_core-patents__get_patent_legal_status", arguments={"patent_id": "<patent_id>"})
+
+# 同族
+tool_load(server="core-patents", tool_name="family")
+tool_invoke(tool="mcp_core-patents__family", arguments={"patent_id": "<patent_id>"})
+
+# 前向引证
+tool_load(server="core-patents", tool_name="forward_citation")
+tool_invoke(tool="mcp_core-patents__forward_citation", arguments={"patent_id": "<patent_id>"})
+```
+
+富化数据用途：
+- **法律状态** → 笔记第一节 `[!patent-meta]` callout 补充"当前法律状态"行
+- **同族** → 笔记第八节"相关专利"补充分全球同族布局表
+- **前向引证** → 笔记第八节补充被引次数和高引证专利（衡量技术影响力）
+- **著录详情** → 校验/补全申请人、发明人、IPC、申请日等字段
+
+MCP 不可用时跳过本步，不影响后续主链路。
+
+### 第 1.55 步：技术落地线索 + 可视化草稿
 
 ```bash
 python skills/patent-reader/tools/analyze/build_context_anchor.py -w outputs/patent_reader/${RUN}

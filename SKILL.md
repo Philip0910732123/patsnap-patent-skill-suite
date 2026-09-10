@@ -20,6 +20,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 | **解读** | 公开号 / PDF / 全文 → 通俗笔记 + 图谱 | 读专利、公开号或 PDF 且目标为理解；`/patent-read`、`/读专利` | `skills/patent-reader/SKILL.md` |
 | **审查答复** | 审查意见问答与草稿；库薄时引导入库/蒸馏 | **须显式**：审查意见、OA、案例入库、实务书、`/oa` | `skills/patent-oa/SKILL.md` |
 | **政策简报** | 对照国知局口径，说明对交底写法/本稿的影响；改技能仅为旁路 | **须显式**：政策简报、政策雷达、`/政策简报`、`/patent-brief`、`/patent-exam-policy`。「技能进化 / `/patent-evolve`」同一入口，仍先出简报 | `skills/patent-exam-policy/SKILL.md` |
+| **全景分析** | 技术赛道检索→趋势/构成/申请人排名/技术地图/生命周期多维度分析 | **须显式**：全景分析、技术赛道、竞争格局、专利 landscape、`/patent-landscape`。仅 MCP 模式，无降级 | `skills/patent-landscape/SKILL.md` |
+| **FTO** | 产品/技术方案→风险专利识别+权要对比+风险等级+规避方向 | **须显式**：FTO、自由实施、侵权风险、风险专利、`/patent-fto`、`/fto`。仅 MCP 模式，无降级 | `skills/patent-fto/SKILL.md` |
 
 ## 路由
 
@@ -29,6 +31,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 - **禁止**因写交底或读专利自动进入政策简报、审查答复、申请文件或案卷。申请文件必须用户点名并给出交底目录；缺 schema / 线稿 / 交底书则停，引导先补交底。内容争议不阻塞主文件。
 - **案卷**必须用户点名（交底申请一起做 / 从零出交底和申请 / 一条龙 / 帮写交底再出申请 / 按清单改 / 会稿 / `/patent-docket`）。点名后 `Read` `skills/patent-docket/SKILL.md`；由案卷再 `Read` 交底或申请入口。调度申请视为已点名申请文件，仍须有交底目录。只写交底、或已有交底只出四件套 → 不要进案卷。
 - 交底 Step 5 查新优先用智慧芽 MCP `patsnap-search.patsnap_search` 做语义检索（覆盖专利+文献）；无 MCP 时降级到交底包 `cnipa_epub_search.py`（一词一页）。按发明人/申请人等做著录检索时用检索包（`core-patents.search_patents` MCP 或 CNITA 降级），两者不要混用。
+- **全景分析**（`/patent-landscape`）和 **FTO**（`/patent-fto`）须用户显式触发，不因写交底/读专利/检索而自动进入。两者仅支持 MCP 模式（无 CNIPA 降级），MCP 不可用时直接告知用户。全景分析用 `patent-landscape` MCP 服务；FTO 用 `patsnap-ip-searching` + `novelty-search-lite` + `core-patents` MCP 服务。
+- 解读（patent-reader）在 MCP 可用时于第 1.5 步自动富化同族/引证/法律状态；MCP 不可用时跳过，不影响主链路。
 
 ## 目录
 
@@ -41,6 +45,8 @@ skills/patent-search/            # 著录检索
 skills/patent-reader/            # 解读
 skills/patent-oa/                # 审查答复
 skills/patent-exam-policy/        # 政策简报（技能进化为旁路）
+skills/patent-landscape/           # 全景分析（须显式；仅 MCP）
+skills/patent-fto/                 # FTO 自由实施分析（须显式；仅 MCP）
 ```
 
 ## 环境与约定
@@ -49,7 +55,7 @@ skills/patent-exam-policy/        # 政策简报（技能进化为旁路）
 - **脚本判读（尤其 Windows）**：stderr 有字 **不等于** 失败。以 **退出码 0** 和机读前缀为准：`EPUB_HITS_JSON:` / `EPUB_SEARCH_MD:` / `EPUB_SEARCH_JSON:` / `EPUB_CLASS_HINT:`、`PROBE:` / `BROWSER:`、`MERMAID:` / `DOCX:`、`APPLICATION_GATE:` / `APPLICATION_CLAIMS:` / `APPLICATION_NUMERALS:`、`DOCKET_DIR:` / `DOCKET_YAML:` / `DOCKET_OK:` / `DOCKET_ERROR:`。PowerShell 可能把 stderr 标成 `NativeCommandError`；**禁止**因此重跑安装或把查新降级 WebSearch。**MCP 模式下无需脚本判读**——MCP 工具直接返回结构化 JSON。
 - **专利类型**：未显式指定时交底**默认发明**。
 - **脚本路径**：相对本技能仓库根（本文件所在目录）。整仓：`python skills/patent-disclosure/tools/…`。当前工作区不是本仓库时，把技能安装目录接到命令前面。单独拷走某一子包时，该包内用 `python tools/…`。不要写厂商环境变量。
-- **用户产出**：写在当前工作区 `outputs/`（解读 `outputs/patent_reader/`，检索 `outputs/patent-search/`，政策 `outputs/exam-policy/`，审查答复 `outputs/oa/`，申请文件 `outputs/patent-application/`，案卷 `outputs/docket/`），不要写到技能安装目录或 `tmp/`。调用脚本时 cwd 用工作区根；`-o` / `-w` 用上述相对路径。
+- **用户产出**：写在当前工作区 `outputs/`（解读 `outputs/patent_reader/`，检索 `outputs/patent-search/`，政策 `outputs/exam-policy/`，审查答复 `outputs/oa/`，申请文件 `outputs/patent-application/`，案卷 `outputs/docket/`，全景分析 `outputs/patent-landscape/`，FTO `outputs/patent-fto/`），不要写到技能安装目录或 `tmp/`。调用脚本时 cwd 用工作区根；`-o` / `-w` 用上述相对路径。
 
 ## 执行前核对
 
@@ -58,6 +64,7 @@ skills/patent-exam-policy/        # 政策简报（技能进化为旁路）
 □ 交底查新未调用 patent-search
 □ 著录检索未用交底一词一页结果冒充清单
 □ 政策简报 / 审查答复 / 申请文件 / 案卷仅在显式触发时进入
+□ 全景分析 / FTO 仅在显式触发时进入；MCP 不可用时不降级
 □ 申请文件已指定交底目录；门禁未过未开写
 □ 案卷未写交底/申请正文；派工只 Read 对方 SKILL.md
 □ 未跨包调用其他子技能的 tools/
