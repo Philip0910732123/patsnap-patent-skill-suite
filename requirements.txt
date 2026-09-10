@@ -5,8 +5,9 @@ python-docx>=1.1.0
 latex2mathml>=3.77.0
 # formula_plan / paradigms.yaml
 PyYAML>=6.0
-# mermaid -> PNG via Playwright; shares browser with CNIPA crawl
-# (skills/patent-disclosure/tools/browser.py)
+# mermaid -> PNG via Playwright; shares browser with CNIPA crawl (fallback only)
+# In Eureka with PatSnap MCP, Playwright is NOT required for patent search.
+# Keep for Mermaid diagram rendering only.
 playwright>=1.40.0
 mammoth>=1.6.0
 python-pptx>=0.6.21
@@ -15,7 +16,8 @@ python-pptx>=0.6.21
 #   pip install matplotlib
 #   python skills/patent-disclosure/tools/md_to_docx.py -i a.md -o a.docx --math-render
 
-# Optional: CNIPA epub.cnipa.gov.cn (Playwright; system Chrome/Edge)
+# Optional: CNIPA epub.cnipa.gov.cn fallback (Playwright; system Chrome/Edge)
+# Only needed when PatSnap MCP is NOT available:
 #   pip install playwright
 #   python skills/patent-disclosure/tools/browser.py --probe
 #   only if no system browser: python -m playwright install chromium

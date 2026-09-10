@@ -20,8 +20,8 @@ user-invocable: false
 | Step 8 | `prompts/disclosure_self_check.md` |
 | 迭代 | `iteration_context.md` / `merger.md` / `correction_handler.md` |
 
-查新工具：`tools/crawl/cnipa_epub_search.py`。整仓安装时路径为 `skills/patent-disclosure/tools/crawl/cnipa_epub_search.py`。著录检索不在本包，**禁止**当查新引擎调用。  
+查新工具：优先使用智慧芽 MCP `patsnap-search.patsnap_search` 做语义检索（覆盖专利+文献，无需拆词/两轮收口）；无 MCP 环境时降级到 `tools/crawl/cnipa_epub_search.py`（一词一页）。整仓安装时路径为 `skills/patent-disclosure/tools/crawl/cnipa_epub_search.py`。著录检索不在本包，**禁止**当查新引擎调用。  
 交底交付后**不要**自动进入申请文件；用户点名并给出本目录后，再走 `skills/patent-application/SKILL.md`。  
-`--type` 与 intake 一致；两段式：关键词 → `EPUB_CLASS_HINT` / IPC·LOC → `--class`；不足 4 条则同分类号回补第一轮。
+MCP 模式：自然语言查询 → `patsnap_search` 语义召回 → 按 `limit: 20` 控制返回条数 → 筛选技术手段对得上的 4～8 条。CNIPA 模式：两段式——关键词 → `EPUB_CLASS_HINT` / IPC·LOC → `--class`；不足 4 条则同分类号回补第一轮。
 
 线稿、CAD、公式、Word 出图用本包 `tools/`（`browser.py`、`mermaid_render.py`、`md_to_docx.py` 等）。

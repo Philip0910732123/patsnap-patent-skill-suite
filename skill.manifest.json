@@ -1,0 +1,56 @@
+{
+  "name": "patsnap-patent-skill-suite",
+  "description": "中国专利全流程技能套件（智慧芽 MCP 增强）：交底书编写、申请文件生成、著录检索、专利解读、审查答复、政策简报。基于 handsomestWei/patent-disclosure-skill 衍生，接入智慧芽 MCP 工具链替代 Playwright 爬虫。",
+  "version": "1.0.0",
+  "runtime": {
+    "python_version": "3.12",
+    "dependencies": [
+      "python-docx>=1.1.0",
+      "latex2mathml>=3.77.0",
+      "PyYAML>=6.0",
+      "mammoth>=1.6.0",
+      "python-pptx>=0.6.21"
+    ],
+    "isolated_env": false
+  },
+  "mcp_dependencies": [
+    {
+      "server": "core-patents",
+      "tools": ["search_patents", "bibliography", "legal_data", "family", "forward_citation"],
+      "purpose": "专利著录检索、法律状态、同族与引证分析"
+    },
+    {
+      "server": "patsnap-search",
+      "tools": ["patsnap_search", "patsnap_fetch"],
+      "purpose": "专利与文献语义检索（交底查新 Step 5）"
+    },
+    {
+      "server": "patent-status",
+      "tools": ["legal_data", "fee_info"],
+      "purpose": "专利法律状态与年费核查"
+    },
+    {
+      "server": "patent-landscape",
+      "tools": ["search_patents_v3", "detail_aggregation", "trend"],
+      "purpose": "专利全景分析（二期扩展）"
+    },
+    {
+      "server": "patsnap-ip-searching",
+      "tools": ["fto_review", "novelty_search"],
+      "purpose": "FTO 检索与查新分析（二期扩展）"
+    }
+  ],
+  "tests": ["cli", "search_flow", "disclosure_flow"],
+  "outputs": [
+    {
+      "key": "search_report",
+      "description": "著录检索结果 Markdown 报告",
+      "path_pattern": "outputs/patent-search/SEARCH-*.md"
+    },
+    {
+      "key": "disclosure_doc",
+      "description": "交底书 Markdown + Word 文档",
+      "path_pattern": "outputs/{case}/交底书_*.md"
+    }
+  ]
+}

@@ -1,6 +1,11 @@
 MIT License
 
 Copyright (c) 2026 handsomestWei
+Copyright (c) 2026 Philip0910732123 (patsnap-patent-skill-suite)
+
+This project is a derivative of handsomestWei/patent-disclosure-skill,
+enhanced with PatSnap MCP integration for patent search and analysis.
+Original project: https://github.com/handsomestWei/patent-disclosure-skill
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

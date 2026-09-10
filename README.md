@@ -1,207 +1,172 @@
 <div align="center">
 
-# 中国专利.skill
+# 中国专利技能套件（智慧芽 MCP 增强）
 
-> 专利点挖掘与交底书（发明/实用/外观）编写，已有交底改写成申请文件，交底到申请可以一起做，公布公告著录检索，通俗解读专利，对照审查口径出政策简报，辅助审查答复。
+> 专利点挖掘与交底书（发明/实用/外观）编写，已有交底改写成申请文件，交底到申请可以一起做，**智慧芽 MCP 语义检索 + 著录检索 + 同族/引证分析**，通俗解读专利，对照审查口径出政策简报，辅助审查答复。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Playwright](https://img.shields.io/badge/Playwright-mermaid%20%2B%20CNIPA-2EAD33.svg)](https://playwright.dev/)
+[![PatSnap MCP](https://img.shields.io/badge/PatSnap-MCP%20Enhanced-2EAD33.svg)](https://www.zhihuiya.com/)
 [![AgentSkills](https://img.shields.io/badge/AgentSkills-Standard-green)](https://agentskills.io)
 
 <br>
 
-有设计文档和代码，但**专利点还没梳**？交底书要**框图 + 可改 Word**？<br>
-定稿后还要**多轮补材料、纠错**并留下修改追溯？<br>
-公开专利晦涩难懂，想**快速看懂权要与落地语境**？
+基于 [handsomestWei/patent-disclosure-skill](https://github.com/handsomestWei/patent-disclosure-skill) 衍生，**核心改造：将 Playwright 爬虫检索替换为智慧芽 MCP 工具链**，覆盖专利全生命周期。
 
-[初衷](#初衷) · [运行效果](#运行效果) · [子技能列表](#子技能列表) · [支持作者](#支持作者) · [参考文档](#参考文档) · [安装说明](INSTALL.md) · [技能入口](SKILL.md)
+[改造说明](#改造说明) · [子技能列表](#子技能列表) · [安装说明](#安装说明) · [技能入口](SKILL.md) · [原始项目](https://github.com/handsomestWei/patent-disclosure-skill)
 
 </div>
 
 ---
 
-## 初衷
+## 改造说明
 
-### 专利交底书编写
+本项目基于 [handsomestWei/patent-disclosure-skill](https://github.com/handsomestWei/patent-disclosure-skill)（MIT License © handsomestWei）衍生，在保留原有全流程专利撰写能力的基础上，**将检索层从 Playwright 爬虫升级为智慧芽 MCP 工具链**。
 
-> **做了多年核心研发，专利发明人那一栏从没写过我的名字。**
+### 核心改造对照
 
-代码是自己敲的，方案是自己扛的，轮到交底书却卡在「专利点怎么挖、查新怎么写、框图和 Word 怎么一次交得出去」。本技能把这一环打通：覆盖发明 / 实用新型 / 外观设计，结构图与外观图都能读懂、写进交底；从项目材料梳出可申请的点，查新、脱敏、成文、迭代另存——让真正干活的人，也能把技术贡献写进可交付的交底书里。
+| 维度 | 原项目 | 本项目（智慧芽 MCP 增强） |
+|------|--------|--------------------------|
+| **交底查新** | Playwright 爬 CNIPA 一词一页 + 两轮分类号收口 | 智慧芽 `patsnap-search.patsnap_search` 语义检索，覆盖专利+文献 |
+| **著录检索** | Playwright 爬 CNIPA 公布公告站，受 WAF/验证码影响 | 智慧芽 `core-patents.search_patents` + `bibliography`，结构化 JSON |
+| **检索覆盖** | 仅中国公布公告 | 全球专利 + 科技文献 |
+| **同族/引证** | 不做 | `core-patents.family` + `forward_citation` |
+| **法律状态** | 不做 | `patent-status.legal_data` + `fee_info` |
+| **FTO 检索** | 不做 | `patsnap-ip-searching.fto_review`（二期扩展） |
+| **全景分析** | 不做 | `patent-landscape.search_patents_v3`（二期扩展） |
+| **CNIPA 降级** | 主路径 | 保留为无 MCP 环境的降级回退 |
+| **Eureka 兼容** | 无 manifest | 新增 `skill.manifest.json` |
 
-### 专利通俗解读
+### 保留不变
 
-> **不止一篇。**
+以下设计是原项目的核心价值，**完整保留**：
 
-公开专利常把阅读门槛抬得很高：权要绕、术语密、落地语境散落在说明书与附图里。本技能把单篇读成通俗笔记与图谱，并入库 Obsidian；依托双链、图谱、插件与 Bases 等生态，陆续解读的专利可以沉淀成**只属于自己的私有专利知识库**——权要、术语、线索与附图彼此勾连，越读越厚。再叠上 [Obsidian CLI](https://help.obsidian.md/cli) 与库内外连接能力，检索、批处理、和外部工具接力都更容易：从单篇通俗笔记，走向可检索、可关联、可继续生长的个人专利情报层，把沉睡在 PDF 里的技术细节重新点亮。库厚了之后，还能在这层之上做**专利比对、挖掘与分析**——同族对照、技术路线梳理、差异点扫描，把「读懂」推进到「用起来」。
-
----
-
-## 运行效果
-
-### 专利交底书编写
-
-<table width="100%" border="1" cellpadding="12" cellspacing="0">
-<tr>
-<th width="50%" align="center">初版生成<br><sub>首次落盘交付</sub></th>
-<th width="50%" align="center">迭代更新<br><sub>多版本并存 + 对话记录</sub></th>
-</tr>
-<tr>
-<td width="50%" valign="top" align="center">
-<img src="docs/效果例-初版生成.jpg" alt="初版生成：outputs 目录下的时间戳交底书、mermaid 图目录等" width="100%" />
-</td>
-<td width="50%" valign="top" align="center">
-<img src="docs/效果例-迭代更新.jpg" alt="迭代更新：新时间戳文件与交底书修订对话记录" width="100%" />
-</td>
-</tr>
-</table>
-
-### 实用新型 / 外观 · 看图与出图
-
-<table width="100%" border="1" cellpadding="12" cellspacing="0">
-<tr>
-<th width="33%" align="center">外观线稿<br><sub>从产品图自动提炼造型轮廓</sub></th>
-<th width="33%" align="center">实用新型线稿<br><sub>从结构图自动生成轮廓与部件序号引出</sub></th>
-<th width="34%" align="center">CAD 三维模型投影<br><sub>从工程模型自动提取等轴测等多视角</sub></th>
-</tr>
-<tr>
-<td width="33%" valign="top" align="center">
-<img src="docs/效果例-外观专利线稿.png" alt="外观辅助线稿：产品造型黑白线稿示意" width="100%" />
-</td>
-<td width="33%" valign="top" align="center">
-<img src="docs/效果例-实用新型专利线稿含部件序号引出线.png" alt="实用新型辅助线稿：结构线稿与部件序号引出线" width="100%" />
-</td>
-<td width="34%" valign="top" align="center">
-<img src="docs/效果例-cad提取等轴测投影图.png" alt="CAD 三维模型等轴测投影：从工程模型自动提取多视角示意" width="100%" />
-</td>
-</tr>
-</table>
-
-### 专利通俗解读
-
-<table width="100%" border="1" cellpadding="12" cellspacing="0">
-<tr>
-<th width="50%" align="center">Obsidian 关系图<br><sub>知识图谱与多色节点</sub></th>
-<th width="50%" align="center">解读 Canvas<br><sub>叙事故事线 · 术语 · 公开线索</sub></th>
-</tr>
-<tr>
-<td width="50%" valign="top" align="center">
-<img src="docs/效果例-obs图谱.jpg" alt="Obsidian 关系图：解读笔记、术语与 Canvas 知识图谱" width="100%" />
-</td>
-<td width="50%" valign="top" align="center">
-<img src="docs/效果例-解读.jpg" alt="专利解读 Canvas：叙事、权要、术语与公开线索图谱" width="100%" />
-</td>
-</tr>
-</table>
+- **显式触发门禁**：申请文件、案卷、审查答复、政策简报须显式触发，防止 Agent 越权产出
+- **机读前缀协议**：`EPUB_HITS_JSON:` / `EPUB_SEARCH_MD:` 等，解决 Windows PowerShell 判读歧义
+- **问题清单机制**：内容争议写入问题清单，不阻塞主文件产出，最多三轮来回
+- **案卷会稿角色扮演**：交底工程师 vs 专利代理师自主多轮规划
+- **附图能力**：产品图→外观线稿、结构图→实用新型线稿、CAD STEP→多视角投影
+- **Obsidian 知识库集成**：专利解读入库 Obsidian，双链+图谱+Bases
+- **跨包隔离原则**：每个子技能自带工具副本，禁止跨包调用
 
 ---
 
 ## 子技能列表
 
-<!-- 技能单行（防 code 在连字符处折行）；名称/详情收紧；触发可换行；剩余给能力。整表 width=100%，不要撑出横向滚动条 -->
 <table width="100%">
 <colgroup>
 <col width="22%">
 <col width="10%">
 <col>
 <col width="18%">
-<col width="6%">
 </colgroup>
 <thead>
 <tr>
-<th align="left" nowrap>技能</th>
-<th align="left" nowrap>名称</th>
+<th align="left">技能</th>
+<th align="left">名称</th>
 <th align="left">能力</th>
 <th align="left">触发</th>
-<th align="left" nowrap>详情</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td nowrap><a href="skills/patent-disclosure/README.md"><code style="white-space:nowrap">patent-disclosure</code></a></td>
+<td nowrap><a href="skills/patent-disclosure/README.md"><code>patent-disclosure</code></a></td>
 <td nowrap>交底书编写</td>
-<td>不会写专利也没关系：材料丢进来，挖出真正能保护的点、查一圈在先技术，直接变成能交差的交底书（发明 / 实用新型 / 外观分套模板）</td>
+<td>材料丢进来，挖出真正能保护的点、查一圈在先技术（智慧芽 MCP 语义检索），直接变成能交差的交底书（发明 / 实用新型 / 外观分套模板）</td>
 <td>「交底书」</td>
-<td nowrap><a href="skills/patent-disclosure/README.md">详情</a></td>
 </tr>
 <tr>
-<td nowrap><a href="skills/patent-application/README.md"><code style="white-space:nowrap">patent-application</code></a></td>
+<td nowrap><a href="skills/patent-application/README.md"><code>patent-application</code></a></td>
 <td nowrap>申请文件</td>
-<td>交底别再停在「给所里看的草稿」——一口气改成权要、说明书、摘要和黑白附图，说不清的进问题清单，不卡死整套文件</td>
-<td>「申请文件」· 「申请底稿」</td>
-<td nowrap><a href="skills/patent-application/README.md">详情</a></td>
+<td>交底改成权要、说明书、摘要和黑白附图，说不清的进问题清单，不卡死整套文件</td>
+<td>「申请文件」·「申请底稿」</td>
 </tr>
 <tr>
-<td nowrap><a href="skills/patent-docket/README.md"><code style="white-space:nowrap">patent-docket</code></a></td>
+<td nowrap><a href="skills/patent-docket/README.md"><code>patent-docket</code></a></td>
 <td nowrap>案卷会稿</td>
-<td>角色扮演交底工程师 vs 专利代理师：自主多轮规划工作流，材料一丢就出交底和申请，清单最多对打三轮，缺事实就问、绝不瞎编</td>
-<td>「交底申请一起做」· 「从零出交底和申请」</td>
-<td nowrap><a href="skills/patent-docket/README.md">详情</a></td>
+<td>角色扮演交底工程师 vs 专利代理师：自主多轮规划，材料一丢就出交底和申请</td>
+<td>「交底申请一起做」</td>
 </tr>
 <tr>
-<td nowrap><a href="skills/patent-reader/README.md"><code style="white-space:nowrap">patent-reader</code></a></td>
+<td nowrap><a href="skills/patent-reader/README.md"><code>patent-reader</code></a></td>
 <td nowrap>通俗解读</td>
-<td>专利全文读不下去：公开号或 PDF 丢进来，换成普通人能看懂的笔记和图谱；推进 Obsidian 后能串起多件专利关联、画出专利地图</td>
+<td>公开号或 PDF 丢进来，换成通俗易懂的笔记和图谱；推进 Obsidian 后串起多件专利关联</td>
 <td>「读专利」</td>
-<td nowrap><a href="skills/patent-reader/README.md">详情</a></td>
 </tr>
 <tr>
-<td nowrap><a href="skills/patent-oa/README.md"><code style="white-space:nowrap">patent-oa</code></a></td>
+<td nowrap><a href="skills/patent-oa/README.md"><code>patent-oa</code></a></td>
 <td nowrap>审查答复辅助</td>
-<td>审查意见别对着发懵：拆条款问答、起草答复稿；个人从业经验和实务书专家技巧蒸馏进库，RAG 检索增强辅助答复</td>
-<td>「审查答复」· 「审查意见」</td>
-<td nowrap><a href="skills/patent-oa/README.md">详情</a></td>
+<td>拆条款问答、起草答复稿；RAG 检索增强辅助答复</td>
+<td>「审查答复」·「审查意见」</td>
 </tr>
 <tr>
-<td nowrap><a href="skills/patent-search/README.md"><code style="white-space:nowrap">patent-search</code></a></td>
+<td nowrap><a href="skills/patent-search/README.md"><code>patent-search</code></a></td>
 <td nowrap>著录检索</td>
-<td>人名、公司、分类号照查；更能扔一张产品图或一段权要，倒推出检索式去翻公布公告</td>
+<td><strong>智慧芽 MCP 增强</strong>：语义检索 + 著录字段 + 同族/引证/法律状态；无 MCP 时降级 CNIPA 爬取</td>
 <td>「著录检索」</td>
-<td nowrap><a href="skills/patent-search/README.md">详情</a></td>
 </tr>
 <tr>
-<td nowrap><a href="skills/patent-exam-policy/README.md"><code style="white-space:nowrap">patent-exam-policy</code></a></td>
+<td nowrap><a href="skills/patent-exam-policy/README.md"><code>patent-exam-policy</code></a></td>
 <td nowrap>政策简报</td>
-<td>对照国知局官网近期政策消息出人话简报，分析技能里哪些交底技巧、申请书式可能过时，审查口径一变就能跟上</td>
-<td>「政策简报」· 「政策雷达」</td>
-<td nowrap><a href="skills/patent-exam-policy/README.md">详情</a></td>
+<td>对照国知局官网近期政策消息出人话简报，分析技能里哪些交底技巧、申请书式可能过时</td>
+<td>「政策简报」</td>
 </tr>
 </tbody>
 </table>
 
 ---
 
-## 支持作者
+## 智慧芽 MCP 工具集成
 
-如果这个 Skill 对您有帮助，可以请我喝杯咖啡☕随缘支持，感谢感谢🙏🙏
+本项目在 Eureka 环境中通过 MCP 工具链替代 Playwright 爬虫：
 
-<table width="70%" border="1" cellpadding="12" cellspacing="0">
-<tr>
-<th width="40%" align="center">随缘支持</th>
-<th width="60%" align="center">Star History</th>
-</tr>
-<tr>
-<td width="40%" valign="middle" align="center">
-<img src="docs/thanks.jpg" alt="随缘支持" width="200" />
-</td>
-<td width="60%" valign="middle" align="center">
-<img alt="Star History Chart" src="https://raw.githubusercontent.com/handsomestWei/patent-disclosure-skill/star-history/star-history.svg" width="100%" />
-</td>
-</tr>
-</table>
+| MCP Server | 关键工具 | 用途 |
+|------------|---------|------|
+| `core-patents` | `search_patents`, `bibliography`, `family`, `forward_citation` | 专利检索、著录、同族与引证 |
+| `patsnap-search` | `patsnap_search`, `patsnap_fetch` | 语义检索（专利+文献）、详情获取 |
+| `patent-status` | `legal_data`, `fee_info` | 法律状态与年费 |
+| `patent-landscape` | `search_patents_v3`, `detail_aggregation` | 全景分析（二期） |
+| `patsnap-ip-searching` | `fto_review`, `novelty_search` | FTO 与查新（二期） |
+
+**双通道设计**：有 MCP 时走智慧芽 API（优先），无 MCP 时降级到原 Playwright CNIPA 爬取（回退）。两条路径都可用，确保兼容性。
 
 ---
 
-## 参考文档
+## 安装说明
 
-- [技能入口与 Agent 流程](SKILL.md)（交底 / 申请文件 / 案卷会稿 / 著录检索 / 解读 / 政策简报 / 审查答复）
-- [详细安装说明](INSTALL.md)
-- [Obsidian 安装与可选社区插件（Windows）](skills/patent-reader/docs/obsidian-setup-guide.md)
+### Eureka（推荐）
+
+本项目已包含 `skill.manifest.json`，可直接作为 Eureka Skill 安装：
+
+1. 克隆仓库到本地
+2. 在 Eureka 中导入技能目录
+3. 确保智慧芽 MCP 工具已配置（49 个 MCP Server 已预置）
+
+### Claude Code / Cursor
+
+```bash
+# 克隆到技能目录
+mkdir -p .claude/skills
+git clone https://github.com/Philip0910732123/patsnap-patent-skill-suite .claude/skills/patsnap-patent-skill-suite
+
+# 安装 Python 依赖
+pip install -r requirements.txt
+```
+
+无智慧芽 MCP 时，自动降级到 Playwright CNIPA 爬取（需 `playwright` + 系统 Chrome/Edge）。
+
+详细安装说明见 [INSTALL.md](INSTALL.md)。
+
+---
+
+## 致谢
+
+本项目基于 [handsomestWei/patent-disclosure-skill](https://github.com/handsomestWei/patent-disclosure-skill) 衍生。感谢原作者对中国专利 Agent Skill 生态的开创性贡献。
 
 ---
 
 <div align="center">
 
-MIT License © [handsomestWei](https://github.com/handsomestWei/)
+MIT License © [handsomestWei](https://github.com/handsomestWei) (original) · [Philip0910732123](https://github.com/Philip0910732123) (derivative)
 
 </div>
