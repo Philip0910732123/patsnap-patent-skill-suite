@@ -132,6 +132,12 @@
 
 ---
 
+## 智慧芽 MCP 配置
+
+> 使用本套件前，请先配置智慧芽 MCP 服务。详细步骤见 **[docs/mcp-setup-guide.md](docs/mcp-setup-guide.md)**。
+
+---
+
 ## 安装说明
 
 ### Eureka（推荐）
