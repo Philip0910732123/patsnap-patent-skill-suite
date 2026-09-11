@@ -191,3 +191,16 @@ pip install -r requirements.txt
 MIT License © [handsomestWei](https://github.com/handsomestWei) (original) · [Philip0910732123](https://github.com/Philip0910732123) (derivative)
 
 </div>
+
+
+---
+
+## 💬 交流与合作
+
+如需技术交流、问题反馈或商业合作，欢迎扫描下方微信二维码联系作者。
+
+<p align="center">
+  <img src="wechat_qr.jpg" width="200" alt="作者微信二维码" />
+</p>
+
+> 添加时请注明来自 GitHub 仓库，我会优先通过。
