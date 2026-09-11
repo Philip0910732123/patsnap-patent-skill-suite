@@ -317,7 +317,8 @@ def render_claim_tree_markdown(
         "| --- | ---: | --- |",
     ]
     for branch, num, delta in rows:
-        lines.append(f"| `{branch}` | {num} | {delta.replace('|', '\\|')} |")
+        _escaped_delta = delta.replace("|", "\\|")
+        lines.append(f"| `{branch}` | {num} | {_escaped_delta} |")
 
     if include_mermaid:
         mmd = claim_tree_to_mermaid(claim_tree, pub, summaries=summaries)
@@ -1098,7 +1099,8 @@ def _claim_tree_card_text(
         "| --- | ---: | --- |",
     ]
     for branch, num, delta in rows[:14]:
-        lines.append(f"| `{branch}` | {num} | {delta.replace('|', '\\|')} |")
+        _escaped_delta = delta.replace("|", "\\|")
+        lines.append(f"| `{branch}` | {num} | {_escaped_delta} |")
     if len(rows) > 14:
         lines.append(f"| … |  | 另 {len(rows) - 14} 项 |")
     return "\n".join(lines)
