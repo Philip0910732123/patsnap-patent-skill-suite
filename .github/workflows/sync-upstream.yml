@@ -1,0 +1,101 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # 每天 UTC 02:00（北京时间 10:00）自动执行
+    - cron: '0 2 * * *'
+  workflow_dispatch: # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/handsomestWei/patent-disclosure-skill.git
+          git fetch upstream main
+
+      - name: Check for upstream changes
+        id: check
+        run: |
+          UPSTREAM=$(git rev-parse upstream/main)
+          LOCAL=$(git rev-parse origin/main)
+          echo "upstream_sha=$UPSTREAM" >> $GITHUB_OUTPUT
+          echo "local_sha=$LOCAL" >> $GITHUB_OUTPUT
+          if [ "$UPSTREAM" = "$LOCAL" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No upstream changes detected."
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Upstream has new commits."
+          fi
+
+      - name: Attempt merge
+        id: merge
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git merge upstream/main --no-edit; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            echo "Merge succeeded, pushing directly."
+          else
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            echo "Merge conflict detected, will create PR."
+            git merge --abort
+          fi
+
+      - name: Push (no conflict)
+        if: steps.check.outputs.has_changes == 'true' && steps.merge.outputs.merge_success == 'true'
+        run: |
+          git push origin main
+
+      - name: Create PR (conflict)
+        if: steps.check.outputs.has_changes == 'true' && steps.merge.outputs.merge_success == 'false'
+        run: |
+          BRANCH="sync-upstream-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          # 尝试合并，保留冲突标记
+          git merge upstream/main --no-edit || true
+          git add -A
+          git commit -m "sync: merge upstream (conflicts need review)" || true
+          git push origin "$BRANCH"
+          # 创建 PR
+          gh pr create \
+            --title "🔄 Sync upstream: ${{ steps.check.outputs.upstream_sha }}" \
+            --body "$(cat <<'EOF'
+          ## 上游仓库有更新
+
+          上游 `handsomestWei/patent-disclosure-skill` 有新的提交，自动合并时检测到冲突。
+
+          ### 需要手动处理
+          请 review 冲突文件，解决冲突后合并此 PR。
+
+          **冲突原因**：本仓库对上游部分文件做了改造（如检索层重写、新增子技能等），与上游更新产生了冲突。
+
+          ### 建议
+          - 检查上游更新内容是否值得合并
+          - 对于本仓库已改造的文件（如 `skills/patent-search/`），保留本仓库版本
+          - 对于上游新增的文件，接受上游版本
+          - 解决冲突后合并此 PR
+
+          ---
+          *此 PR 由 GitHub Actions 自动创建*
+          EOF
+          )" \
+            --base main \
+            --head "$BRANCH" \
+            --label "sync-upstream"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
