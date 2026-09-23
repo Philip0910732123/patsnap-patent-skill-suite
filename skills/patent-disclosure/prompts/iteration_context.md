@@ -15,6 +15,7 @@
 | 补充文档、扩展方案、合并新材料 | `merger.md` |
 | 指出错误、与事实/参数不符、风格或保护点调整、术语太抽象或与标题不对齐 | `correction_handler.md` |
 | 用户已按 `disclosure_builder.md` §7.6 声明侧重点，仅需 **第五章权利要求书式强化**（取向须与本稿已有材料及第五、三章已写观点一致，**禁止**为交互而编造新场景） | `merger.md`（以最近定稿为基准，合并范围以第五章为主，必要时微调第四章与第五章衔接句） |
+| 已有交底上要做 **专利布局 / 专利围栏 / 族树 / 保护型 1+N** | `prompts/fence/guardrails.md`（可强开；仍须分解→突围→矩阵→立项说明，确认后再分件） |
 
 ---
 
@@ -67,13 +68,13 @@ python skills/patent-disclosure/tools/iteration_dialog_log.py --case-dir "{案�
 1. 读本文 → 按上表选 `merger.md` 或 `correction_handler.md` 并 **`Read`**。
 2. **`Read`** 基准稿 + 本轮补充材料；实用/外观若改图或主题，**`Read`/`Write` `figure_plan.yaml`（无则创建）**。  
    - 若本轮**新增/更新**了目录内文件：再跑 **`tools/cad_scan.py -r …`**（规则同 `project_scan.md`「CAD / STEP」）。  
-   - `ask_enable_step_parse` → **本轮成文不中断**；确认前不装依赖、不改 STEP 视图；**本轮交付回复末尾**再反问。`hint_export_step` → 本轮交付回复**末尾**提示导出 STEP。  
+   - `ask_enable_step_parse` → **本轮成文不中断**；确认前不装依赖、不改 STEP 视图；**`## 交付后请确认` 第 1 条**再反问。`hint_export_step` → 该节第 1 条提示导出 STEP。  
    - 外观：按 `image_gen.md` + `design_lineart_assist.md` 重评/补线稿（不问用户；实拍与线稿都入 md 与 Word；CAD 不入文）。  
    - 实用：按 `image_gen.md` + `structure_lineart_assist.md` + `structure_lineart_compose.md` 重评/补线稿（不问用户；按件写出子 SVG 再拼总图；件号 overlay；CAD 不入文）。  
 3. 在稿内完成合并或纠正逻辑（自检 **8.1（发明：标题/术语/实施例）、8.2、8.3** 见 `disclosure_self_check.md`；实用/外观核 **8.4/8.5**）。术语族替换须 1.1 至第六章及 mermaid 整族对齐，机制不丢。  
 4. **`Write`** 新时间戳 `.md` → 运行 **`mermaid_render.py -o`** 写出定稿图与 **`.docx`**。  
 5. 追加 **`交底书修订对话记录.md`**（**`iteration_dialog_log.py`** 或手工），见上文「修订对话记录」。  
-6. 在回复中写明新文件路径，并输出该模板要求的 **「合并摘要（留档）」**或 **「纠正摘要（留档）」**（含 figure_plan 是否同步；若有 CAD 提示须写在回复末尾）。
+6. 在回复中写明新文件路径，并输出该模板要求的 **「合并摘要（留档）」**或 **「纠正摘要（留档）」**，其后按 **`prompts/delivery_confirm.md`** 输出 **`## 交付后请确认`**（含 figure_plan 是否同步；CAD/STEP 写在第 1 条）。
 
 ---
 

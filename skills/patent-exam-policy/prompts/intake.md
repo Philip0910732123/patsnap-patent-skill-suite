@@ -32,4 +32,4 @@
 
 1. **`Read`** `skills/patent-exam-policy/prompts/research.md` → A/B 分层种子、增量、施行日历、抓取  
 2. **`Read`** `skills/patent-exam-policy/prompts/emit_backlog.md` → 写简报（含施行日历、对交底写法、对申请文件写法）  
-3. 展示简报结束话术（见 guardrails）；**不要**把「全部采纳」当成默认下一步
+3. 展示 **`## 交付后请确认`**（见 guardrails）；**不要**把「全部采纳」当成默认下一步

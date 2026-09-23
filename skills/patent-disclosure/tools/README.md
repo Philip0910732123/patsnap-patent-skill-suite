@@ -1,6 +1,6 @@
 # 交底包 tools
 
-本目录是 **patent-disclosure** 的脚本根：浏览器、docx、mermaid、公式、CAD、线稿，以及 `crawl/` 轻量查新。
+本目录是 **patent-disclosure** 的脚本根：浏览器、docx、mermaid、公式、CAD、线稿，以及 `crawl/` 轻量查新、`fence/` 保护型 1+N。
 
 整仓安装时从仓库根调用：`python skills/patent-disclosure/tools/…`。单独拷走本包时，本目录即为 `tools/`。
 
@@ -8,9 +8,11 @@
 
 | 脚本 | 作用 |
 |------|------|
-| **`crawl/cnipa_epub_search.py`** | **（Step 5 优先）** 一步拉取+解析，不落盘；**一词一页**；**`--type invention\|utility_model\|design\|all`** |
-| **`crawl/cnipa_epub_crawler.py`** | 拉取并默认保存结果页 HTML |
+| **`crawl/cnipa_epub_search.py`** | **（Step 5 优先）** 一步拉取+解析，不落盘；**一词一页**（公布模式默认每页 10 条）；**`--type invention\|utility_model\|design\|all`**；`--class` 默认 1×1；首页最多 4 个词 |
+| **`crawl/cnipa_epub_crawler.py`** | 检索入口：默认同会话 `fetch` 提交（每词 0.2–0.6 秒），失败自动回退整页导航；词间**自适应节流**（按响应延迟增减，节奏跨进程持久化）；拉取并默认保存结果页 HTML。文件头记录站点防护特征与实测结论 |
+| **`crawl/cnipa_epub_nav.py`** | 兜底路径：整页导航提交的原子操作（gate / 填框 / 提交 / 取 HTML），由上面的入口调用，一般不直接运行 |
 | **`crawl/cnipa_epub_parse.py`** | 仅解析已保存 HTML |
+| **`crawl/cnipa_epub_wait.yaml`** | 公布站等待与收口上限（中文注释）；脚本优先读 YAML，缺文件回退 `cnipa_epub_wait.DEFAULTS` |
 | **`patent_type.py`** | 类型别名、国知局 checkbox、Google Patents 查询提示 |
 
 依赖：`pip install playwright`（或根目录 `requirements.txt`）。浏览器见 **`tools/browser.py`**。查新说明见 **`prompts/prior_art_search.md`**。
@@ -63,6 +65,15 @@ python tools/check_formula_plan.py -i outputs/case/formula_plan.yaml --eval
 
 成文纪律见 **`skills/patent-disclosure/prompts/invention/disclosure_builder.md` §7.7**。
 
+## 专利布局 / 保护型 1+N（旁路）
+
+脚本在 **`tools/fence/`**（与 `crawl/` 一样单独成目录）。细则见 `tools/fence/README.md`。
+
+```bash
+python tools/fence/check_layout.py --family outputs/案/fence/family.yaml --matrix outputs/案/fence/matrix.yaml
+python tools/fence/check_scorecard.py --table
+```
+
 ## 线稿规划（成文前必做）
 
 | 脚本 / 文档 | 作用 |
@@ -96,7 +107,7 @@ python tools/design_lineart_gate.py --case-dir outputs/case --prepare-jobs
 | **`prompts/structure_lineart_compose.md`** | 独立拼装指令：每件一个子 SVG；总图相对引用；粒度止于件号 |
 | **`structure_lineart_gate.py`** | 默认开；无 Structure 拒绝；无源图则允许文生图 |
 | **`structure_lineart_compose.py`** | 读 compose YAML，写出 `parts/{视}_{id}.svg` 与相对引用的总 SVG |
-| **`structure_callout_overlay.py`** | 读取锚点后以 SVG 叠标；有 `base_svg_path` 时注入拼装图，不压扁零件层；叠标后扩大画布留白，避免贴边序号被截掉 |
+| **`structure_callout_overlay.py`** | 读取锚点后以 SVG 叠标；默认按原图墨线把序号推出实体/内腔、把引线终点吸到墨线；有 `base_svg_path` 时注入拼装图；叠标后扩大画布留白 |
 | **`references/schemas/structure_lineart_brief.schema.yaml`** | 描述合同（与外观分文件） |
 | **`references/schemas/structure_lineart_compose.schema.yaml`** | 按件槽位 / crop / 单件图合同 |
 | **`references/schemas/structure_callout_anchors.schema.yaml`** | 锚点持久化合同（`anchor` + `label` + 置信度；可选 `base_svg_path`） |

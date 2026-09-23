@@ -3,7 +3,7 @@
 ## 核对清单
 
 - [ ] **L0 Callout**：`[!patent-meta]`、`[!grounding]`、`[!warning]-` 齐全
-- [ ] **Frontmatter**：`cssclasses: patent-reader`、`ipc`、`confidence_speculative` 正确
+- [ ] **Frontmatter**：`cssclasses: patent-reader`、`ipc`、`confidence_speculative` 正确；已写 `tech_means` / `tech_effects` / `tech_effect_pairs`（或 `tech_effect.json`）
 - [ ] **权利要求树**：`claim_tree.json` 已经 Agent 校对（`review.by=agent`，父号/独立权正确，含「权1或2」类多引用）；单一树形表；「本项新增」来自 `claim_deltas.json`；勿 mermaid+表双份主展示
 - [ ] **第九节无 URL**；推测仅在 `[!warning]` 内
 - [ ] **附图闸门**：`insert` 图已嵌入；`placeholder` 仅 callout

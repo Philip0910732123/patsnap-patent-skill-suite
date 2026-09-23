@@ -48,8 +48,8 @@ python skills/patent-disclosure/tools/cad_scan.py -r "<扫描根>" --json
 
 | `action` | 行为 |
 |----------|------|
-| `ask_enable_step_parse` | **不中断**后续挖点/成文。记下 `step_files`，成文只用已有图片/文档。**交底落盘后**在交付回复末尾用 `messages.ask_enable_step_parse` 反问（请回 **是** / **否**）。未得 **是** 前禁止装依赖与 `step_to_views.py`。 |
-| `hint_export_step` | **不中断**扫描（继续 Office/文档/图片流程）；在**交付回复末尾**提示：可将原生 CAD 导出为 `.step`/`.stp` 后再开启解析（文案可用 JSON `messages.hint_export_step`）。 |
+| `ask_enable_step_parse` | **不中断**后续挖点/成文。记下 `step_files`，成文只用已有图片/文档。**交底落盘后**在 **`## 交付后请确认` 第 1 条**用 `messages.ask_enable_step_parse` 反问（请回 **是** / **否**）。未得 **是** 前禁止装依赖与 `step_to_views.py`。 |
+| `hint_export_step` | **不中断**扫描（继续 Office/文档/图片流程）；在 **`## 交付后请确认` 第 1 条**提示：可将原生 CAD 导出为 `.step`/`.stp` 后再开启解析（文案可用 JSON `messages.hint_export_step`）。 |
 | `none` | 无 CAD 相关文件，忽略。 |
 
 **用户在交付后回复「是」后**（或成文前主动要求开启后）：
@@ -78,7 +78,7 @@ python skills/patent-disclosure/tools/run_step_to_views.py --enable-step-parse \
 - `figure_plan.seed.yaml` 里 CAD 条为 `kind: cad`、`use_in_disclosure: false`、`role: reference`：**不是线稿，不得入文**。  
 - 随后按 `fill_structure_schema.md` 审改 seed：识图重评 `relevance` / `quality` / `score`，CAD 条保持不入文。再跑 `image_gen.py`：有合格线稿才跳过生成，否则以高分 CAD/实拍为参考图生图，或文生图。另存新时间戳交底稿。  
 - **禁止**无 `--enable-step-parse`（且无环境变量 `PATENT_SKILL_STEP_PARSE=1`）时强行转换。  
-- 用户回复 **否**：记录决定，保留已交付稿；可在回复末尾保留「日后可再开 STEP 解析」一句。
+- 用户回复 **否**：记录决定，保留已交付稿；可在 **`## 交付后请确认` 第 1 条**保留「日后可再开 STEP 解析」一句。
 
 **后缀**：`.step`/`.stp` 为可解析目标；原生 CAD（`.sldprt`/`.sldasm`/`.ipt`/`.iam`/`.prt`/`.asm`/`.catpart`/…）见 `tools/cad_formats.py`，**本技能不直接解析**。
 

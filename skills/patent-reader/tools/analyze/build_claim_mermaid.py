@@ -21,9 +21,9 @@ import sys
 from pathlib import Path
 
 try:
-    from vault.obsidian import claim_tree_to_mermaid
+    from vault.obsidian_claims import claim_tree_to_mermaid
 except ImportError:
-    from tools.patent_reader.vault.obsidian import claim_tree_to_mermaid
+    from tools.patent_reader.vault.obsidian_claims import claim_tree_to_mermaid
 
 
 def main(argv: list[str] | None = None) -> int:
