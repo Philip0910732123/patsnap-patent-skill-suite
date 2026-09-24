@@ -2,7 +2,11 @@
 
 # 中国专利技能套件（智慧芽 MCP 增强）
 
+<<<<<<< HEAD
 > 专利点挖掘与交底书（发明/实用/外观）编写，已有交底改写成申请文件，交底到申请可以一起做，**智慧芽 MCP 语义检索 + 著录检索 + 同族/引证分析**，通俗解读专利，对照审查口径出政策简报，辅助审查答复，**全景分析与 FTO 风险检索**。
+=======
+> 专利点挖掘、交底书（发明/实用/外观）与申请文件编写；按图或权要等多条件检索；通俗解读专利和地图探索；审查政策解读；辅助审查答复。
+>>>>>>> upstream/main
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
@@ -41,6 +45,7 @@
 
 以下设计是原项目的核心价值，**完整保留**：
 
+<<<<<<< HEAD
 - **显式触发门禁**：申请文件、案卷、审查答复、政策简报须显式触发，防止 Agent 越权产出
 - **机读前缀协议**：`EPUB_HITS_JSON:` / `EPUB_SEARCH_MD:` 等，解决 Windows PowerShell 判读歧义
 - **问题清单机制**：内容争议写入问题清单，不阻塞主文件产出，最多三轮来回
@@ -48,6 +53,72 @@
 - **附图能力**：产品图→外观线稿、结构图→实用新型线稿、CAD STEP→多视角投影
 - **Obsidian 知识库集成**：专利解读入库 Obsidian，双链+图谱+Bases
 - **跨包隔离原则**：每个子技能自带工具副本，禁止跨包调用
+=======
+公开专利常把阅读门槛抬得很高：权要绕、术语密、落地语境散落在说明书与附图里。本技能把单篇读成通俗笔记与图谱，并入库 Obsidian；依托双链、图谱、插件与 Bases 等生态，陆续解读的专利可以沉淀成**只属于自己的私有专利知识库**——权要、术语、线索与附图彼此勾连，越读越厚。再叠上 [Obsidian CLI](https://help.obsidian.md/cli) 与库内外连接能力，检索、批处理、和外部工具接力都更容易：从单篇通俗笔记，走向可检索、可关联、可继续生长的个人专利情报层，把沉睡在 PDF 里的技术细节重新点亮。库厚了之后，还能在这层之上做**专利比对、挖掘与分析**——同族对照、技术路线梳理、差异点扫描，把「读懂」推进到「用起来」。
+
+---
+
+## 运行效果
+
+### 专利交底书编写
+
+<table width="100%" border="1" cellpadding="12" cellspacing="0">
+<tr>
+<th width="50%" align="center">初版生成<br><sub>首次落盘交付</sub></th>
+<th width="50%" align="center">迭代更新<br><sub>多版本并存 + 对话记录</sub></th>
+</tr>
+<tr>
+<td width="50%" valign="top" align="center">
+<img src="docs/效果例-初版生成.jpg" alt="初版生成：outputs 目录下的时间戳交底书、mermaid 图目录等" width="100%" />
+</td>
+<td width="50%" valign="top" align="center">
+<img src="docs/效果例-迭代更新.jpg" alt="迭代更新：新时间戳文件与交底书修订对话记录" width="100%" />
+</td>
+</tr>
+</table>
+
+### 实用新型 / 外观 · 看图与出图
+
+<table width="100%" border="1" cellpadding="12" cellspacing="0">
+<tr>
+<th width="33%" align="center">外观线稿<br><sub>从产品图自动提炼造型轮廓</sub></th>
+<th width="33%" align="center">实用新型线稿<br><sub>从结构图自动生成轮廓与部件序号引出</sub></th>
+<th width="34%" align="center">CAD 三维模型投影<br><sub>从工程模型自动提取等轴测等多视角</sub></th>
+</tr>
+<tr>
+<td width="33%" valign="top" align="center">
+<img src="docs/效果例-外观专利线稿.png" alt="外观辅助线稿：产品造型黑白线稿示意" width="100%" />
+</td>
+<td width="33%" valign="top" align="center">
+<img src="docs/效果例-实用新型专利线稿含部件序号引出线.png" alt="实用新型辅助线稿：结构线稿与部件序号引出线" width="100%" />
+</td>
+<td width="34%" valign="top" align="center">
+<img src="docs/效果例-cad提取等轴测投影图.png" alt="CAD 三维模型等轴测投影：从工程模型自动提取多视角示意" width="100%" />
+</td>
+</tr>
+</table>
+
+### 专利通俗解读 · 地图探索
+
+<table width="100%" border="1" cellpadding="12" cellspacing="0">
+<tr>
+<th width="33%" align="center">Obsidian 关系图<br><sub>知识图谱与多色节点</sub></th>
+<th width="33%" align="center">解读 Canvas<br><sub>叙事故事线 · 术语 · 公开线索</sub></th>
+<th width="34%" align="center">专利地图<br><sub>地形沙盘 · 四象限 · 引证网络 · 功效矩阵</sub></th>
+</tr>
+<tr>
+<td width="33%" valign="top" align="center">
+<img src="docs/效果例-obs图谱.jpg" alt="Obsidian 关系图：解读笔记、术语与 Canvas 知识图谱" width="100%" />
+</td>
+<td width="33%" valign="top" align="center">
+<img src="docs/效果例-解读.jpg" alt="专利解读 Canvas：叙事、权要、术语与公开线索图谱" width="100%" />
+</td>
+<td width="34%" valign="top" align="center">
+<img src="docs/效果例-专利地图.jpg" alt="专利地图：地形沙盘、申请人四象限、同族引证、技术功效矩阵与统计仪表盘" width="100%" />
+</td>
+</tr>
+</table>
+>>>>>>> upstream/main
 
 ---
 
@@ -72,29 +143,60 @@
 <tr>
 <td nowrap><a href="skills/patent-disclosure/README.md"><code>patent-disclosure</code></a></td>
 <td nowrap>交底书编写</td>
+<<<<<<< HEAD
 <td>材料丢进来，挖出真正能保护的点、查一圈在先技术（智慧芽 MCP 语义检索），直接变成能交差的交底书（发明 / 实用新型 / 外观分套模板）</td>
+=======
+<td>不会写专利也没关系：材料丢进来，挖出真正能保护的点、查一圈在先技术，直接变成能交差的交底书（发明 / 实用新型 / 外观）。首篇定稿后还可做保护型 1+N 专利布局</td>
+>>>>>>> upstream/main
 <td>「交底书」</td>
 </tr>
 <tr>
 <td nowrap><a href="skills/patent-application/README.md"><code>patent-application</code></a></td>
 <td nowrap>申请文件</td>
+<<<<<<< HEAD
 <td>交底改成权要、说明书、摘要和黑白附图，说不清的进问题清单，不卡死整套文件</td>
 <td>「申请文件」·「申请底稿」</td>
+=======
+<td>已有交底，改成权要、说明书、摘要和附图；说不清的写入问题清单，不挡住整套文件</td>
+<td>「申请文件」· 「申请底稿」</td>
+<td nowrap><a href="skills/patent-application/README.md">详情</a></td>
+>>>>>>> upstream/main
 </tr>
 <tr>
 <td nowrap><a href="skills/patent-docket/README.md"><code>patent-docket</code></a></td>
 <td nowrap>案卷会稿</td>
+<<<<<<< HEAD
 <td>角色扮演交底工程师 vs 专利代理师：自主多轮规划，材料一丢就出交底和申请</td>
 <td>「交底申请一起做」</td>
+=======
+<td>角色扮演交底工程师 vs 专利代理师：自主多轮规划工作流，材料一丢就出交底和申请，缺事实就问、绝不瞎编</td>
+<td>「交底申请一起做」· 「从零出交底和申请」</td>
+<td nowrap><a href="skills/patent-docket/README.md">详情</a></td>
+>>>>>>> upstream/main
 </tr>
 <tr>
 <td nowrap><a href="skills/patent-reader/README.md"><code>patent-reader</code></a></td>
 <td nowrap>通俗解读</td>
+<<<<<<< HEAD
 <td>公开号或 PDF 丢进来，换成通俗易懂的笔记和图谱；推进 Obsidian 后串起多件专利关联</td>
+=======
+<td>专利全文读不下去：公开号或 PDF 丢进来，换成普通人能看懂的笔记和图谱；推进 Obsidian 后能串起多件专利关联</td>
+>>>>>>> upstream/main
 <td>「读专利」</td>
 </tr>
 <tr>
+<<<<<<< HEAD
 <td nowrap><a href="skills/patent-oa/README.md"><code>patent-oa</code></a></td>
+=======
+<td nowrap><a href="skills/patent-map/README.md"><code style="white-space:nowrap">patent-map</code></a></td>
+<td nowrap>专利地图</td>
+<td>解读入库攒下来的案子摊开成图：语义地形、申请人四象限、同族引证网络、技术功效矩阵、仪表盘；本地私有化运行，浏览器打开即可</td>
+<td>「专利地图」· 「案例地图」</td>
+<td nowrap><a href="skills/patent-map/README.md">详情</a></td>
+</tr>
+<tr>
+<td nowrap><a href="skills/patent-oa/README.md"><code style="white-space:nowrap">patent-oa</code></a></td>
+>>>>>>> upstream/main
 <td nowrap>审查答复辅助</td>
 <td>拆条款问答、起草答复稿；RAG 检索增强辅助答复</td>
 <td>「审查答复」·「审查意见」</td>

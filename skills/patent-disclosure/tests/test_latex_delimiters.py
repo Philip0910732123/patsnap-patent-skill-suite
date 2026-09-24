@@ -70,6 +70,57 @@ class BareParenLatexTests(unittest.TestCase):
             p.write_text(r"好的 \(M_{\mathrm{total}}\)", encoding="utf-8")
             self.assertEqual(delim_main(["-i", str(p)]), 0)
 
+    def test_nested_paren_inside_inline_math_is_clean(self) -> None:
+        md = (
+            r"向量 \(\bigl(b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}},\,b_{i,\mathrm{io}},\,b_{i,\mathrm{peak}}\bigr)\)。"
+            r"取 \(\max(x_{\mathrm{i}}, y_{\mathrm{j}})\)。"
+            r"以及 \(\left(x_{\mathrm{a}}+y\right)\)。"
+        )
+        self.assertEqual(find_bare_paren_latex(md), [])
+
+    def test_bare_tuple_with_mathrm_is_hit(self) -> None:
+        md = r"向量 (b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}})。"
+        hits = find_bare_paren_latex(md)
+        self.assertEqual(len(hits), 1)
+        self.assertIn(r"\mathrm{cpu}", hits[0].snippet)
+
+    def test_inline_math_then_bare_paren_still_hit(self) -> None:
+        md = r"\(\bigl(b_{i,\mathrm{cpu}}\bigr)\) 后面还有 (M_{\mathrm{total}})。"
+        hits = find_bare_paren_latex(md)
+        self.assertEqual(len(hits), 1)
+        self.assertIn(r"\mathrm{total}", hits[0].snippet)
+        self.assertNotIn(r"\mathrm{cpu}", hits[0].snippet)
+
+    def test_nested_paren_inside_dollar_and_block_is_clean(self) -> None:
+        md = (
+            r"行内 $\bigl(b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}}\bigr)$。"
+            "\n"
+            r"\[ \bigl(b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}}\bigr) \]"
+            "\n"
+            "$$\n"
+            r"\bigl(b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}}\bigr)"
+            "\n$$\n"
+        )
+        self.assertEqual(find_bare_paren_latex(md), [])
+
+    def test_nested_paren_inside_multiline_display_is_clean(self) -> None:
+        md = (
+            "块级\n"
+            r"\["
+            "\n"
+            r"\bigl(b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}}\bigr)"
+            "\n"
+            r"\]"
+            "\n"
+        )
+        self.assertEqual(find_bare_paren_latex(md), [])
+
+    def test_code_then_bare_paren_still_hit(self) -> None:
+        md = r"调试用 `\(x_{\mathrm{i}}\)`，正文误写成 (M_{\mathrm{total}})。"
+        hits = find_bare_paren_latex(md)
+        self.assertEqual(len(hits), 1)
+        self.assertIn(r"\mathrm{total}", hits[0].snippet)
+
 
 class MermaidRenderSkipsDocxTests(unittest.TestCase):
     def test_bare_paren_skips_docx(self) -> None:
@@ -95,6 +146,24 @@ class MermaidRenderSkipsDocxTests(unittest.TestCase):
             src = Path(tmp) / "draft.md"
             out = Path(tmp) / "out.md"
             src.write_text("# T\n\n" + r"\(M_{\mathrm{total}}\)" + "\n", encoding="utf-8")
+            with patch(
+                "mermaid_render.render_markdown_mermaid",
+                side_effect=lambda md, **k: (md, 0, 0),
+            ), patch("mermaid_render.try_write_docx", return_value=True) as w:
+                code = mermaid_main(["-i", str(src), "-o", str(out)])
+            self.assertEqual(code, 0)
+            w.assert_called_once()
+
+    def test_nested_inline_math_still_calls_docx(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "draft.md"
+            out = Path(tmp) / "out.md"
+            src.write_text(
+                "# T\n\n" + r"\(\bigl(b_{i,\mathrm{cpu}},\,b_{i,\mathrm{mem}}\bigr)\)" + "\n",
+                encoding="utf-8",
+            )
             with patch(
                 "mermaid_render.render_markdown_mermaid",
                 side_effect=lambda md, **k: (md, 0, 0),

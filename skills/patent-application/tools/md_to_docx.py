@@ -113,14 +113,23 @@ def get_math_stats() -> MathOutcomeStats:
     return _MATH_STATS
 
 
+_OMML_IMPORT_WARNED = False
+
+
 def _try_append_omml(paragraph, latex: str, *, display: bool) -> bool:
     """尝试把 LaTeX 挂为 OMML；成功 True。"""
+    global _OMML_IMPORT_WARNED
     if not _PREFER_OMML or not (latex or "").strip():
         return False
     try:
         from math_to_omml import try_latex_to_omml
     except ImportError:
-        print("[md_to_docx] 缺少本包 math_to_omml.py，公式无法转为 OMML", file=sys.stderr)
+        if not _OMML_IMPORT_WARNED:
+            _OMML_IMPORT_WARNED = True
+            print(
+                "[md_to_docx] 缺少本包 math_to_omml.py，公式按原文写入 Word",
+                file=sys.stderr,
+            )
         return False
     omml = try_latex_to_omml(latex, display=display)
     if omml is None:
@@ -1327,6 +1336,22 @@ def convert_md_to_docx(
     return doc
 
 
+def _warn_bare_paren_latex(md_text: str) -> None:
+    """行内公式写成普通括号时给出机读提示 ``LATEX_DELIM:``（不阻断转换）。
+
+    ``(M_{\\mathrm{total}})`` 这类写法 Word 会当纯文本。``latex_delimiters.py``
+    未随包时静默跳过；交底包另在 ``mermaid_render.py`` 里硬拦截，此处保证
+    **直接调用本脚本**也能看到同一提示。
+    """
+    try:
+        from latex_delimiters import find_bare_paren_latex, format_hits_report
+    except ImportError:
+        return
+    hits = find_bare_paren_latex(md_text)
+    if hits:
+        print(format_hits_report(hits), file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     ensure_utf8_stdio()
     p = argparse.ArgumentParser(description="Markdown → Word（标题样式映射）")
@@ -1379,6 +1404,8 @@ def main(argv: list[str] | None = None) -> int:
     except UnicodeDecodeError:
         md_text = in_path.read_text(encoding="utf-8", errors="replace")
         print("警告：输入文件含非 UTF-8 字节，已使用替换字符解码后继续转换。", file=sys.stderr)
+
+    _warn_bare_paren_latex(md_text)
 
     if args.math_render:
         md_text = _maybe_render_math_md(md_text, base)
