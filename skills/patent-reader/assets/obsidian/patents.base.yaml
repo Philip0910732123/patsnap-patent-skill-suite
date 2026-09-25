@@ -13,6 +13,26 @@ properties:
     displayName: 领域
   ipc:
     displayName: IPC
+  ipc_codes:
+    displayName: IPC列表
+  assignees:
+    displayName: 申请人
+  organizations:
+    displayName: 机构
+  inventors:
+    displayName: 发明人
+  filing_date:
+    displayName: 申请日
+  publication_date:
+    displayName: 公开日
+  invention_title:
+    displayName: 发明名称
+  tech_means:
+    displayName: 技术手段
+  tech_effects:
+    displayName: 技术功效
+  tech_effect_pairs:
+    displayName: 技术功效对
   read_date:
     displayName: 解读日期
   evidence_scope:
@@ -38,6 +58,11 @@ views:
       - pub_number
       - domain
       - ipc
+      - tech_means
+      - tech_effects
+      - assignees
+      - filing_date
+      - publication_date
       - read_date
       - formula.evidence_zh
       - perspective

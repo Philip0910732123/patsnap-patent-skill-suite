@@ -9,7 +9,7 @@
 | `check_support.py` | `APPLICATION_SUPPORT:` | 0 无 ERROR；1 有 ERROR |
 | `compose_application_figure.py` | `APPLICATION_FIG:` | 0 已出 SVG（PNG 看 png=）；**仅实用新型 / 发明点名图**；外观禁用 |
 | `iteration_dialog_log.py` | `LOG_FILE=` | 0 已追加 |
-| `emit_application_docx.py` | `DOCX:` / `APPLICATION_DOCX:` | 0 全部写出 |
+| `emit_application_docx.py` | `DOCX:` / `APPLICATION_DOCX:` / `LATEX_DELIM:` | 0 全部写出；某文件行内公式写成普通括号则该文件 `DOCX: ok=0 reason=latex_delim`，总退出码 1 |
 
 ```bash
 python skills/patent-application/tools/material_gate.py --case-dir outputs/{案件}

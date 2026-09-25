@@ -44,7 +44,7 @@ python skills/patent-oa/tools/refresh_vault.py --inventory  # 只读：历史案
 python skills/patent-oa/tools/emit_opinion_docx.py -i outputs/oa/案/意见陈述_时间戳.md
 ```
 
-意见陈述 Word：**仅用户确认采纳某份草稿后**，按 `assets/opinion_statement.md` 写递交 md，再跑本包 `emit_opinion_docx.py`（`md_to_docx.py` 为交底包副本，禁止调用交底路径）。不做官方电子表单、不排版权要替换页。
+意见陈述 Word：**仅用户确认采纳某份草稿后**，按 `assets/opinion_statement.md` 写递交 md，再跑本包 `emit_opinion_docx.py`（`md_to_docx.py` 为交底包副本，禁止调用交底路径）。不做官方电子表单、不排版权要替换页。普通括号包 LaTeX 时 stderr 打印 `LATEX_DELIM:`，**不阻断**出 Word（陈述书可能引用权要原文括号）。
 
 Obsidian 结构：`oa/cases/history/` · `oa/pending/` · `oa/drafts/` · `oa/playbooks/` + `_OA索引` / `_OA看板.base` / `_OA关联.canvas`。
 

@@ -7,7 +7,7 @@ user-invocable: false
 # 政策简报（交底用）
 
 须用户点名（政策简报 / 政策雷达 / 审查政策更新 / `/政策简报` / `/patent-brief` / `/patent-exam-policy`）。  
-**默认只出简报，不改技能。** 「技能进化 / `/patent-evolve`」走同一套检索，但仍先出简报；只有用户再点名改技能时才 `Read` `apply_after_confirm.md`。
+**默认只出简报，不改技能。** 「技能进化 / `/patent-evolve`」走同一套检索，但仍先出简报；只有用户再点名改技能时才 `Read` `apply_after_confirm.md`。简报结束末块为 **`## 交付后请确认`**（口令「按简报改交底技能」「采纳 E…」「沉淀到 docs/」）。
 
 1. **`Read`** `prompts/guardrails.md` → `intake.md`
 2. **`Read`** `prompts/research.md`（A/B 分层种子 + 实用新型/外观/实施细则 + 相对上次增量）

@@ -31,7 +31,7 @@
 
 对外表述优先用 **「政策简报」**；「政策雷达」视为同义。少用「规避对抗」。少把「技能进化」当主能力宣传。
 
-交底定稿后的存在感：见 **`soft_nudge.md`**（低频至多一句；不挂进默认 Step）。
+交底定稿后的存在感：见 **`soft_nudge.md`**（低频至多一句，写入交底 **`## 交付后请确认` 第 4 条**；不挂进默认 Step）。
 
 ## 技能进化旁路 · 可写白名单（仅点名后）
 
@@ -43,14 +43,16 @@
 
 **例外（须该 E* 影响面=路由，且用户点名该编号，不随「全部采纳」）**：仓库根 `SKILL.md` 的路由/触发句。
 
-**默认不改**：`skills/patent-application/`、`skills/patent-reader/`、`skills/patent-search/`、`skills/patent-oa/`、`skills/patent-exam-policy/`、`skills/patent-docket/`。
+**默认不改**：`skills/patent-application/`、`skills/patent-reader/`、`skills/patent-search/`、`skills/patent-oa/`、`skills/patent-exam-policy/`、`skills/patent-docket/`、`skills/patent-map/`。
 
 ## 简报结束时（默认，未改技能）
 
-```
-本稿为政策简报，对照官网口径，未改技能。
-若要对交底技能做口径硬化，请另说「按简报改交底技能」或「采纳 E…」（须先有附录 E*）。
-也可「沉淀到 docs/」将本稿复制到本包 docs/（仍不改 prompts）。
-```
+简报路径说完之后，末块标题固定为：
 
-未收到改技能的确认前：**禁止** Edit/Write 技能正文（简报落盘到 `outputs/exam-policy/` 除外）。
+## 交付后请确认
+
+1. **本稿可调整：** 本稿为政策简报，对照官网口径，未改技能。
+2. **下一步 / 旁路：** 若要对交底技能做口径硬化，请另说「按简报改交底技能」或「采纳 E…」（须先有附录 E*）。也可说「沉淀到 docs/」将本稿复制到本包 docs/（仍不改 prompts）。
+
+不要把「全部采纳」当成默认下一步。未收到改技能的确认前：**禁止** Edit/Write 技能正文（简报落盘到 `outputs/exam-policy/` 除外）。
+

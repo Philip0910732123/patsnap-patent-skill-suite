@@ -2,8 +2,8 @@
 """按持久化锚点给实用新型线稿叠加件号与引出线。
 
 大模型只负责识别部件并给出归一化锚点/标签坐标；本脚本校验件号后，
-以 SVG 精确绘制曲线和序号。若视图提供 base_svg_path（按件拼装结果，零件层指向 parts/*.svg），
-则把件号组注入该 SVG，不把零件层压扁、不改写子文件引用。
+以 SVG 精确绘制曲线和序号，并默认按原图墨线校正：序号推到外轮廓留白，
+引出线末端吸到墨线。若视图提供 base_svg_path，把件号组注入该 SVG。
 
   python tools/structure_callout_overlay.py \
     --case-dir outputs/case \
@@ -21,6 +21,8 @@ import struct
 import sys
 from pathlib import Path
 from typing import Any
+
+from structure_callout_layout import autolayout_view
 
 CALLOUT_START = "<!-- structure-callouts -->"
 CALLOUT_END = "<!-- /structure-callouts -->"
@@ -168,8 +170,9 @@ def validate_manifest(
                 if point is None:
                     errors.append(f"views[{vi}] 件号 {pid or '?'} 的 {key} 须为 [x, y]")
                     continue
-                if not all(0.0 <= n <= 1.0 for n in point):
-                    errors.append(f"views[{vi}] 件号 {pid or '?'} 的 {key} 超出 0..1")
+                lo, hi = (-0.08, 1.08) if key == "label" else (0.0, 1.0)
+                if not all(lo <= n <= hi for n in point):
+                    errors.append(f"views[{vi}] 件号 {pid or '?'} 的 {key} 超出 {lo}..{hi}")
                 if key == "label":
                     labels.append(point)
             confidence = item.get("confidence", 1.0)
@@ -370,12 +373,14 @@ def callouts_markup(view: dict[str, Any], width: int, height: int) -> str:
     return "\n".join(svg)
 
 
-def render_view(view: dict[str, Any], case_dir: Path) -> Path:
+def render_view(view: dict[str, Any], case_dir: Path, *, autolayout: bool = True) -> Path:
     output_path = resolve_path(case_dir, str(view["output_svg_path"]))
     base_raw = str(view.get("base_svg_path") or "").strip()
     if base_raw:
         base_path = resolve_path(case_dir, base_raw)
         width, height = svg_canvas_size(base_path)
+        if autolayout:
+            view = autolayout_view(view, case_dir, (width, height))
         markup = callouts_markup(view, width, height)
         text = inject_callouts(base_path.read_text(encoding="utf-8"), markup)
         text = pad_svg_canvas(text, canvas_padding(width, height, view))
@@ -385,6 +390,8 @@ def render_view(view: dict[str, Any], case_dir: Path) -> Path:
 
     image_path = resolve_path(case_dir, str(view["image_path"]))
     width, height = image_size(image_path)
+    if autolayout:
+        view = autolayout_view(view, case_dir, (width, height))
     encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
     markup = callouts_markup(view, width, height)
     pad = canvas_padding(width, height, view)
@@ -413,6 +420,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--case-dir", type=Path, required=True)
     parser.add_argument("--anchors", type=Path, required=True)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--no-autolayout",
+        action="store_true",
+        help="不按墨线校正序号/引线终点（仅用 YAML 原坐标）",
+    )
     args = parser.parse_args(argv)
 
     case_dir = args.case_dir.resolve()
@@ -426,7 +438,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     outputs: list[str] = []
     if not args.check:
-        outputs = [str(render_view(view, case_dir)) for view in manifest.get("views") or []]
+        outputs = [
+            str(render_view(view, case_dir, autolayout=not args.no_autolayout))
+            for view in manifest.get("views") or []
+        ]
     print(json.dumps({"ok": True, "anchors": str(anchors_path), "outputs": outputs}, ensure_ascii=False, indent=2))
     return 0
 

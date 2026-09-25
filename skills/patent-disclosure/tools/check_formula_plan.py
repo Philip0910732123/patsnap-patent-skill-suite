@@ -57,6 +57,40 @@ def equation_origin(eq: dict[str, Any]) -> str:
     return "source"
 
 
+_SOURCE_KINDS = frozenset({"tex", "md", "word_text", "pdf_text", "other"})
+
+
+def equation_source_kind(eq: dict[str, Any], origin: str) -> str:
+    """tex | md | word_text | pdf_text | other | ""。agent 可空。"""
+    raw = str(eq.get("source_kind") or "").strip().lower()
+    if raw:
+        return raw
+    if origin == "agent":
+        return ""
+    return ""
+
+
+def equation_verified(eq: dict[str, Any], origin: str, kind: str) -> bool | None:
+    """已核 True、未核 False、无法判断 None。"""
+    if "verified" in eq and eq["verified"] is not None:
+        v = eq["verified"]
+        if isinstance(v, bool):
+            return v
+        s = str(v).strip().lower()
+        if s in ("true", "yes", "1"):
+            return True
+        if s in ("false", "no", "0"):
+            return False
+        return None
+    if origin == "agent":
+        return True
+    if kind in ("tex", "md"):
+        return True
+    if kind == "pdf_text":
+        return False
+    return None
+
+
 def _selected_tags(cfg: dict[str, Any], pids: list[str]) -> set[str]:
     tags: set[str] = set()
     for pid in pids:
@@ -170,6 +204,25 @@ def check_plan(
                 warnings.append(
                     f"equations[{i}] source 式的 paradigm_id={epid} 不在库中（可选标签，已忽略）"
                 )
+        kind = equation_source_kind(eq, origin)
+        if kind and kind not in _SOURCE_KINDS:
+            errors.append(
+                f"equations[{i}].source_kind 须为 tex|md|word_text|pdf_text|other，收到 {eq.get('source_kind')!r}"
+            )
+            kind = ""
+        if origin == "source" and not kind:
+            warnings.append(f"equations[{i}] origin=source 建议填写 source_kind")
+        verified = equation_verified(eq, origin, kind)
+        if origin == "source" and verified is False:
+            warnings.append(
+                f"equations[{i}] verified=false"
+                + (f"（{kind}）" if kind else "")
+                + "：可进交底转述，不得作区别特征 Fk"
+            )
+        elif origin == "source" and kind == "word_text" and verified is None:
+            warnings.append(
+                f"equations[{i}] source_kind=word_text 建议标明 verified（Word 域公式 mammoth 可能丢失）"
+            )
         lx = str(eq.get("latex") or "")
         if origin in ("source", "agent") and not lx.strip():
             errors.append(f"equations[{i}] 缺 latex")
