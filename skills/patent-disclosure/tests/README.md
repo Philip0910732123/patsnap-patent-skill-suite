@@ -1,6 +1,6 @@
 # tests 目录说明
 
-本目录是 **patent-disclosure** 的测试。CAD / mermaid / 公式 / 轻量查新都在这里。其他包的测试在各自 `tests/`。
+本目录是 **patent-disclosure** 的测试。CAD / mermaid / 公式 / 轻量查新 / 保护型 1+N（分解、矩阵、族树、立项后校验）都在这里。其他包的测试在各自 `tests/`。
 
 ## 运行
 

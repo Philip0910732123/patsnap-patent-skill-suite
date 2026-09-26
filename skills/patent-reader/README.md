@@ -13,7 +13,7 @@
 <tbody>
 <tr><td nowrap width="1%"><strong>取证解读</strong></td><td>从全文或 PDF 抽出权要树、术语表，并对照说明书与附图</td></tr>
 <tr><td nowrap width="1%"><strong>叙述故事线</strong></td><td>一句话总览 + 连贯叙事：把权要与说明书「讲成人话」，降低首次通读成本</td></tr>
-<tr><td nowrap width="1%"><strong>知识图谱</strong></td><td>单篇与多篇关系图、术语双链；入库后自动配好图谱呈现</td></tr>
+<tr><td nowrap width="1%"><strong>知识图谱</strong></td><td>单篇与多篇关系图、术语双链；入库后自动配好图谱呈现。申请日、申请人、机构、引证公开号、技术手段/功效一并写入 frontmatter，供专利地图使用</td></tr>
 <tr><td nowrap width="1%"><strong>公开线索辅助</strong></td><td>联网检索少量公开材料，用行业语境辅助理解（<strong>非</strong>权要 / 说明书证据）</td></tr>
 </tbody>
 </table>

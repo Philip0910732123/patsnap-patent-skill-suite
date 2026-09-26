@@ -1135,6 +1135,27 @@ def test_evidence_label_zh_in_frontmatter() -> None:
     assert "speculative_label: 是" in out
 
 
+def test_enrich_merges_tech_effect() -> None:
+    note = "---\npub_number: CN1\ndomain: 测试\ntech_means:\n  - 湿法成膜\n---\n\n# t\n"
+    out = enrich_note_frontmatter(
+        note,
+        pub="CN1",
+        domain="测试",
+        manifest={},
+        anchor={},
+        tech_effect={
+            "tech_means": ["陶瓷涂覆"],
+            "tech_effects": ["耐热"],
+            "tech_effect_pairs": ["湿法成膜 → 耐热"],
+        },
+    )
+    assert "tech_means:" in out
+    assert "湿法成膜" in out
+    assert "陶瓷涂覆" in out
+    assert "耐热" in out
+    assert "湿法成膜 → 耐热" in out
+
+
 def test_glossary_stub_fills_section5_definition() -> None:
     with tempfile.TemporaryDirectory() as td:
         vault = Path(td)
@@ -1196,6 +1217,7 @@ def main() -> int:
     test_bootstrap_creates_appearance()
     test_repo_obsidian_bases_are_yaml_templates()
     test_evidence_label_zh_in_frontmatter()
+    test_enrich_merges_tech_effect()
     test_glossary_stub_fills_section5_definition()
     test_harvest_glossary_from_note_section5()
     test_harvest_narrative_from_note()

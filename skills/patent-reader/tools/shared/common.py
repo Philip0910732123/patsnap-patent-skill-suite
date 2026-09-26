@@ -802,7 +802,7 @@ def extract_assignees(text: str) -> list[str]:
             name = m.group(1).strip().strip("；;，,")
             if name and name not in assignees:
                 assignees.append(name)
-    return assignees[:5]
+    return assignees[:8]
 
 
 def extract_ipc_codes(text: str) -> list[str]:
@@ -813,3 +813,127 @@ def extract_ipc_codes(text: str) -> list[str]:
         if up not in seen:
             seen.append(up)
     return seen[:10]
+
+
+_CN_DATE = re.compile(
+    r"(20\d{2}|19\d{2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日"
+)
+_ISO_DATE = re.compile(r"(20\d{2}|19\d{2})[-/.](\d{1,2})[-/.](\d{1,2})")
+_ORG_HINTS = (
+    "公司",
+    "大学",
+    "学院",
+    "研究所",
+    "研究院",
+    "集团",
+    "有限",
+    "株式会社",
+    "医院",
+    "厂",
+    "事务所",
+    "中心",
+    "实验室",
+    "Inc",
+    "Ltd",
+    "LLC",
+    "GmbH",
+    "Corp",
+    "University",
+)
+_PUB_NUM_RE = re.compile(
+    r"(?<![A-Za-z0-9])((?:CN|US|EP|WO|JP|KR)\s*\d{6,13}\s*[A-Z]\d?)(?![A-Za-z0-9])",
+    re.I,
+)
+
+
+def _norm_date(year: str, month: str, day: str) -> str:
+    try:
+        return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+    except ValueError:
+        return ""
+
+
+def _date_after_label(text: str, labels: tuple[str, ...]) -> str:
+    head = text[:8000]
+    for label in labels:
+        for m in re.finditer(re.escape(label) + r"\s*[:：]?\s*", head):
+            chunk = head[m.end() : m.end() + 40]
+            cm = _CN_DATE.search(chunk) or _ISO_DATE.search(chunk)
+            if cm:
+                got = _norm_date(cm.group(1), cm.group(2), cm.group(3))
+                if got:
+                    return got
+    return ""
+
+
+def extract_filing_date(text: str) -> str:
+    return _date_after_label(text, ("申请日", "Filing Date", "申请日期"))
+
+
+def extract_publication_date(text: str) -> str:
+    return _date_after_label(
+        text, ("公开日", "公布日", "授权公告日", "Publication Date")
+    )
+
+
+def extract_application_number(text: str) -> str:
+    m = re.search(
+        r"(?:申请号|Application\s*Number)\s*[:：]\s*([A-Z]{0,2}\s*\d[\d.]{6,20})",
+        text[:8000],
+        re.I,
+    )
+    return re.sub(r"\s+", "", m.group(1)) if m else ""
+
+
+def extract_inventors(text: str) -> list[str]:
+    people: list[str] = []
+    patterns = [
+        r"(?:发明人|设计人)\s*[:：]\s*([^\n]{2,120})",
+        r"(?:Inventors?)\s*[:：]\s*([^\n]{2,120})",
+    ]
+    for pat in patterns:
+        m = re.search(pat, text[:8000], re.I)
+        if not m:
+            continue
+        raw = m.group(1)
+        parts = re.split(r"[、，,;/；]\s*", raw)
+        for p in parts:
+            name = p.strip().strip("。．")
+            if 1 < len(name) <= 40 and name not in people:
+                people.append(name)
+    return people[:12]
+
+
+def extract_invention_title(text: str) -> str:
+    m = re.search(
+        r"(?:发明名称|实用新型名称|外观设计名称|Title)\s*[:：]\s*([^\n]{2,120})",
+        text[:4000],
+        re.I,
+    )
+    return m.group(1).strip().strip("。．;；") if m else ""
+
+
+def extract_cited_pub_numbers(text: str, self_pub: str = "") -> list[str]:
+    """说明书/背景里出现的公开号（不含本文）。"""
+    self_n = re.sub(r"\s+", "", (self_pub or "")).upper()
+    seen: list[str] = []
+    for m in _PUB_NUM_RE.finditer(text):
+        n = re.sub(r"\s+", "", m.group(1)).upper()
+        if n == self_n or n in seen:
+            continue
+        seen.append(n)
+        if len(seen) >= 20:
+            break
+    return seen
+
+
+def organizations_from_assignees(assignees: list[str]) -> list[str]:
+    orgs: list[str] = []
+    for a in assignees or []:
+        name = str(a).strip()
+        if not name:
+            continue
+        if any(h.lower() in name.lower() for h in _ORG_HINTS):
+            if name not in orgs:
+                orgs.append(name)
+    return orgs

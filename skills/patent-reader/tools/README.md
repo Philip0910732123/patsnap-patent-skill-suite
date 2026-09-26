@@ -25,7 +25,13 @@ skills/patent-reader/tools/
 | | `validate_claim_tree.py` | 权项树校验/规范化 |
 | | `validate_public_clues.py` | 附录 B 线索校验 + 置信度筛选 |
 | | `lint_patent_note.py` | 笔记结构校验 |
-| `vault/` | `obsidian.py` | Frontmatter、Canvas、库 bootstrap、Mermaid |
+| `vault/` | `obsidian.py` | 兼容入口：再导出下列拆分模块的公开符号 |
+| | `obsidian_paths.py` | 模板 / CSS 路径 |
+| | `obsidian_frontmatter.py` | YAML 解析与入库字段 |
+| | `obsidian_claims.py` | 权利要求树、Mermaid、第三节表 |
+| | `obsidian_glossary.py` | 术语 stub、反链、相关笔记扫描 |
+| | `obsidian_canvas.py` | JSON Canvas 与图谱导航 |
+| | `obsidian_bootstrap.py` | 库初始化、索引、关系图配色 |
 | | `schema_vault.py` | Structure/Appearance Schema 写入笔记/Canvas |
 | | `clue_vault.py` | `clues/` 落地、附录/旁注/Canvas |
 | | `desc_paragraphs.py` | 说明书 `[000N]` 解析与悬停 wikilink |

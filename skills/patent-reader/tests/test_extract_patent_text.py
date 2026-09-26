@@ -42,6 +42,11 @@ def main() -> int:
     assert len(tree.get("roots", [])) >= 1
     manifest = json.loads((out / "source_manifest.json").read_text(encoding="utf-8"))
     assert manifest.get("claim_count", 0) >= 2
+    assert "示例科技有限公司" in (manifest.get("assignees") or [])
+    assert manifest.get("filing_date") == "2024-03-01"
+    assert manifest.get("publication_date") == "2025-01-15"
+    assert "张三" in (manifest.get("inventors") or [])
+    assert "CN107785522B" in (manifest.get("cited_pubs") or [])
     print("OK extract_patent_text smoke")
     return 0
 

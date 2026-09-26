@@ -26,7 +26,7 @@ user-invocable: false
 | `triage` | `prompts/triage.md` → `references/issue_taxonomy.md` |
 | `ask_human` | `prompts/ask_human.md` |
 | `round_close` | `prompts/round_close.md` |
-| `terminal_*` | `prompts/round_close.md`（只做收口陈述，不再派工） |
+| `terminal_*` | `prompts/round_close.md`（只做收口陈述 + **`## 交付后请确认`**，不再派工） |
 
 阶段合法跳转：`references/phases.yaml`。机器校验：`tools/validate_docket.py`。tracker 落盘：`tools/emit_tracker.py`。交接只传路径：`references/handoff_contract.md`。
 

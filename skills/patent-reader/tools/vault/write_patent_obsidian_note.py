@@ -8,7 +8,7 @@
       --manifest source_manifest.json --lint-json lint.json \\
       [--context-anchor context_anchor.json] [--bundle synthesis_bundle.json] \\
       [--public-clues public_clues.json] [--claim-deltas claim_deltas.json] \\
-      [--workdir outputs/patent_reader/RUN] [--strict-figures] [--include-review]
+      [--tech-effect tech_effect.json] [--workdir outputs/patent_reader/RUN]
 """
 from __future__ import annotations
 
@@ -36,22 +36,23 @@ try:
         runtime_config,
         slugify_pub,
     )
-    from vault.obsidian import (
+    from vault.obsidian_bootstrap import (
         bootstrap_vault,
-        build_canvas,
-        claim_deltas_from_tree,
-        enrich_note_frontmatter,
-        ensure_canvas_nav,
         ensure_domain_index,
+        try_obsidian_cli_property,
+        upsert_index_entry,
+    )
+    from vault.obsidian_canvas import build_canvas, ensure_canvas_nav
+    from vault.obsidian_claims import (
+        claim_deltas_from_tree,
         harvest_claim_summaries_from_note,
         load_claim_deltas,
         merge_claim_summaries,
         render_claim_tree_markdown,
-        scan_vault_related,
-        try_obsidian_cli_property,
         upsert_claim_tree_section,
-        upsert_index_entry,
     )
+    from vault.obsidian_frontmatter import enrich_note_frontmatter, load_tech_effect
+    from vault.obsidian_glossary import scan_vault_related
     from vault.schema_vault import (
         render_appearance_section_md,
         render_structure_section_md,
@@ -67,22 +68,23 @@ except ImportError:  # python -m 包内导入
         runtime_config,
         slugify_pub,
     )
-    from tools.patent_reader.vault.obsidian import (
+    from tools.patent_reader.vault.obsidian_bootstrap import (
         bootstrap_vault,
-        build_canvas,
-        claim_deltas_from_tree,
-        enrich_note_frontmatter,
-        ensure_canvas_nav,
         ensure_domain_index,
+        try_obsidian_cli_property,
+        upsert_index_entry,
+    )
+    from tools.patent_reader.vault.obsidian_canvas import build_canvas, ensure_canvas_nav
+    from tools.patent_reader.vault.obsidian_claims import (
+        claim_deltas_from_tree,
         harvest_claim_summaries_from_note,
         load_claim_deltas,
         merge_claim_summaries,
         render_claim_tree_markdown,
-        scan_vault_related,
-        try_obsidian_cli_property,
         upsert_claim_tree_section,
-        upsert_index_entry,
     )
+    from tools.patent_reader.vault.obsidian_frontmatter import enrich_note_frontmatter, load_tech_effect
+    from tools.patent_reader.vault.obsidian_glossary import scan_vault_related
     from tools.patent_reader.vault.schema_vault import (
         render_appearance_section_md,
         render_structure_section_md,
@@ -733,6 +735,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Agent 填写的本项新增 JSON（缺省读 workdir/claim_deltas.json）",
     )
     ap.add_argument(
+        "--tech-effect",
+        default=None,
+        type=optional_path,
+        help="Agent 填写的技术功效 JSON（缺省读 workdir/tech_effect.json）",
+    )
+    ap.add_argument(
         "--structure-schema",
         default=None,
         type=optional_path,
@@ -872,6 +880,28 @@ def main(argv: list[str] | None = None) -> int:
         scan_mode = False
 
     content = sanitize_user_facing_titles(content)
+    tech_payload = {}
+    te_path = args.tech_effect
+    if not te_path and args.workdir:
+        cand = args.workdir.resolve() / "tech_effect.json"
+        if cand.is_file():
+            te_path = cand
+    if te_path:
+        tech_payload = load_tech_effect(Path(te_path))
+    if args.workdir:
+        plan = args.workdir.resolve() / "note_plan.json"
+        if plan.is_file() and not (tech_payload.get("tech_means") and tech_payload.get("tech_effects")):
+            try:
+                plan_data = json.loads(plan.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                plan_data = {}
+            nested = plan_data.get("tech_effect") if isinstance(plan_data.get("tech_effect"), dict) else plan_data
+            merged = load_tech_effect(nested)
+            tech_payload = {
+                "tech_means": tech_payload.get("tech_means") or merged.get("tech_means") or [],
+                "tech_effects": tech_payload.get("tech_effects") or merged.get("tech_effects") or [],
+                "tech_effect_pairs": tech_payload.get("tech_effect_pairs") or merged.get("tech_effect_pairs") or [],
+            }
     content = enrich_note_frontmatter(
         content,
         pub=pub,
@@ -879,6 +909,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest=manifest,
         anchor=anchor,
         public_clues=public_clues,
+        tech_effect=tech_payload,
     )
 
     if insert_figs:
@@ -993,9 +1024,9 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.workdir:
             try:
-                from vault.obsidian import claim_tree_to_mermaid
+                from vault.obsidian_claims import claim_tree_to_mermaid
             except ImportError:
-                from tools.patent_reader.vault.obsidian import claim_tree_to_mermaid
+                from tools.patent_reader.vault.obsidian_claims import claim_tree_to_mermaid
 
             mmd_path = args.workdir.resolve() / "claim_mermaid.mmd"
             mmd_path.write_text(
