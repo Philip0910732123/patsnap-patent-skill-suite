@@ -6,7 +6,7 @@
 | 文件 | 作用 |
 |------|------|
 | [`paradigms.yaml`](paradigms.yaml) | 无原文时的起草菜单 + 全局规则（禁装饰音等，约束 agent 式） |
-| [`../schemas/formula_plan.schema.yaml`](../schemas/formula_plan.schema.yaml) | 案件级 `formula_plan.yaml` 合同（含 `origin` / `omitted`） |
+| [`../schemas/formula_plan.schema.yaml`](../schemas/formula_plan.schema.yaml) | 案件级 `formula_plan.yaml` 合同（含 `origin` / `source_kind` / `verified` / `omitted`） |
 
 ## 加载顺序（后者覆盖同 `id`）
 
@@ -54,6 +54,7 @@ paradigms:
 ## 成文纪律（摘要）
 
 - 每条式标记 `origin: source | agent`。source 对材料；agent 的 `paradigm_id`（及可选 `combo_id`）须∈合并后的库。
+- source 式建议填 `source_kind`（`tex` / `md` / `word_text` / `pdf_text` / `other`）与 `verified`。`pdf_text` 默认未核；未核式可进交底转述，不得当 Fk。有 `.tex` 时读链见 **`prompts/tex_scan.md`**，成文勾选认 `tex_formula_inventory.md`，不必把 `.tex` 再载入一轮。
 - 材料式多：按专利点勾选进 `equations`；不采用的写 `omitted`（出处 + 原因）。
 - 默认 `rules.forbid_accents: true`：**agent 式**正文不要用 `\tilde`/`\hat`/`\bar` 等。source 式保真，装饰音校验为警告。
 - 含 agent 式时须有可代入数值例。全为 source 时鼓励给，复杂式可不强求。

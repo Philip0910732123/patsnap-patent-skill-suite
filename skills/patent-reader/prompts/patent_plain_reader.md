@@ -54,7 +54,7 @@ python skills/patent-reader/tools/vault/check_obsidian_env.py --set "库路径" 
 
 **实现痕迹禁令（硬性）**：交付笔记与库内索引**禁止**出现脚本/工具文件名（如 `*.py`）、流水线字段路径（如 `context_anchor.ipc_application`）、内部裁图文件名（如 `page_001_xref_01.png`）、Schema 合同名括号（如「结构说明（StructureSchema）」）及「由 `*_schema.json` 入库生成」类脚注。附录「来源」只写「离线 IPC 行业词表」等自然语言；附图说明只写「第 N 页」。结构/外观节标题用「结构说明」「外观要点」；连接关系「自/至」须为「件号 + 名称」。
 
-有库时，`write_patent_obsidian_note.py` 入库会**自动** `bootstrap_vault`（CSS / Bases / 关系图 Groups）。**勿**再引导用户手动复制 CSS 或单独为「配库」跑初始化；交付对话只引导可选社区插件（见 `obsidian_plugin_guide.md`）。
+有库时，`write_patent_obsidian_note.py` 入库会**自动** `bootstrap_vault`（CSS / Bases / 关系图 Groups），并把申请日、公开日、发明人、机构、文内引证公开号、**技术手段/功效**写入 frontmatter（供专利地图）。**勿**再引导用户手动复制 CSS 或单独为「配库」跑初始化；交付对话只引导可选社区插件（见 `obsidian_plugin_guide.md`）。
 ## 工作流（严格按序）
 
 生成运行 ID：`read-<公开号或slug>-<YYYYMMDDHHmm>`（**RUN**）。  
@@ -230,6 +230,29 @@ python skills/patent-reader/tools/analyze/validate_claim_tree.py \
 - 也可写在 `note_plan.json` 的 `claim_deltas` 字段（同结构）；或写入 `claim_tree.json` 各 node 的 `delta` 字段。
 - 入库时**优先**用本文件；缺省权号才用脚本启发式从 `text_preview` 截句（效果较差）。
 
+### 第 1.65 步：`tech_effect.json`（Agent 主路径 · 技术功效矩阵）
+
+为专利地图抽出**技术手段 × 技术功效**。对照权利要求与说明书，写 `outputs/patent_reader/${RUN}/tech_effect.json`，并写入笔记 frontmatter 同名字段。
+
+先 `Read` `skills/patent-reader/references/tech_effect_hints.yaml`：能套用词表就套用同一写法，套不上再自拟 **4～16 字**短标签（同一库内同一技术不要换说法）。
+
+```json
+{
+  "source": "agent",
+  "tech_means": ["湿法成膜", "基膜掺无机颗粒"],
+  "tech_effects": ["涂层附着力", "耐热"],
+  "tech_effect_pairs": [
+    "湿法成膜 → 涂层附着力",
+    "基膜掺无机颗粒 → 涂层附着力",
+    "湿法成膜 → 耐热"
+  ]
+}
+```
+
+- 手段 = 怎么做（工艺 / 结构 / 配方 / 算法），功效 = 达到什么（耐热、降内阻、吞吐量…）。
+- 一对一写成 `手段 → 功效`；一篇 **1～6 对**。不要把 IPC 或领域名拿来充数。
+- 也可写在 `note_plan.json` 的 `tech_effect` 对象里。入库会把 JSON 合并进 frontmatter，供地图直接读字段。
+
 ### 第 2 步：公开检索 → 充实 `public_clues.json`（Agent 主路径）
 
 对 `context_anchor.json` → `web_search_queries` 执行 **WebSearch**（或国知局脚本）得到候选后：
@@ -296,7 +319,7 @@ python skills/patent-reader/tools/analyze/validate_public_clues.py \
 
 ### 第 3 步：`note_plan.json`
 
-含 `context_anchor_ref`、`public_clues_ref`、`grounding`；可选内嵌 `claim_deltas`（若未单独写 `claim_deltas.json`）。
+含 `context_anchor_ref`、`public_clues_ref`、`grounding`；可选内嵌 `claim_deltas`（若未单独写 `claim_deltas.json`）、`tech_effect`（若未单独写 `tech_effect.json`）。
 
 ### 第 4 步：写解读笔记
 
@@ -343,6 +366,7 @@ python skills/patent-reader/tools/vault/write_patent_obsidian_note.py \
   --lint-json outputs/patent_reader/${RUN}/lint.json \
   --output outputs/patent_reader/${RUN}/write_status.json
 # workdir 内若有 claim_deltas.json，第三节「本项新增」优先采用（也可 --claim-deltas 显式指定）
+# workdir 内若有 tech_effect.json，技术功效字段写入 frontmatter（也可 --tech-effect 显式指定）
 # 可选：--include-review（入库时把 review 图当 insert）
 # 可选：--strict-figures（要求笔记已嵌入，禁止只靠自动补嵌）
 # 官方 PDF 默认拷到笔记目录 source/；不需要时加 --no-copy-source-pdf

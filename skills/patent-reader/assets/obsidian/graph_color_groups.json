@@ -1,5 +1,5 @@
 {
-  "_comment": "与 tools/patent_reader/vault/obsidian.py::build_patent_graph_color_groups 保持同步；供文档对照。实际写入以脚本为准（含动态 path）。",
+  "_comment": "与 tools/patent_reader/vault/obsidian_bootstrap.py::build_patent_graph_color_groups 保持同步；供文档对照。实际写入以脚本为准（含动态 path）。",
   "legend": [
     { "color": "#14B8A6", "meaning": "单篇 Canvas 图谱（file:_图谱）" },
     { "color": "#0D9488", "meaning": "全局关联 Canvas（file:_专利关联）" },

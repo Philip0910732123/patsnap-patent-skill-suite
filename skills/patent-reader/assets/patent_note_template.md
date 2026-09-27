@@ -8,11 +8,22 @@ cssclasses:
 pub_number: ""
 domain: 未分类
 ipc: ""
+ipc_codes: []
 assignees: []
+organizations: []
+inventors: []
+filing_date: ""
+publication_date: ""
+application_number: ""
+invention_title: ""
+cited_pubs: []
 read_date: YYYY-MM-DD
 perspective: 入门
 evidence_scope: full_text
 confidence_speculative: false
+tech_means: []
+tech_effects: []
+tech_effect_pairs: []
 ---
 
 # 专利解读：{{发明名称或公开号}}
@@ -26,9 +37,14 @@ confidence_speculative: false
 
 > [!patent-meta] 著录项
 > - **公开号**：{{CN…}}
+> - **发明名称**：{{invention_title}}
 > - **领域**：{{domain}}
 > - **IPC**：{{ipc}}
 > - **申请人**：{{assignees}}
+> - **机构**：{{organizations}}
+> - **发明人**：{{inventors}}
+> - **申请日**：{{filing_date}}
+> - **公开日**：{{publication_date}}
 > - **视角**：{{入门|研发|规避}}
 > - **证据范围**：{{全文|仅摘要|部分}}
 > - **运行 ID**：{{RUN}}

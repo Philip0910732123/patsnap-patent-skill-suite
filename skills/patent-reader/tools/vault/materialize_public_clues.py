@@ -40,13 +40,10 @@ try:
         upsert_appendix_b,
     )
     from shared.common import optional_path, runtime_config
-    from vault.obsidian import (
-        build_canvas,
-        ensure_canvas_nav,
-        harvest_claim_summaries_from_note,
-        parse_frontmatter,
-        scan_vault_related,
-    )
+    from vault.obsidian_canvas import build_canvas, ensure_canvas_nav
+    from vault.obsidian_claims import harvest_claim_summaries_from_note
+    from vault.obsidian_frontmatter import parse_frontmatter
+    from vault.obsidian_glossary import scan_vault_related
     from vault.write_patent_obsidian_note import (
         harvest_glossary_from_note,
         harvest_narrative_from_note,
@@ -64,13 +61,10 @@ except ImportError:
         upsert_appendix_b,
     )
     from tools.patent_reader.shared.common import optional_path, runtime_config
-    from tools.patent_reader.vault.obsidian import (
-        build_canvas,
-        ensure_canvas_nav,
-        harvest_claim_summaries_from_note,
-        parse_frontmatter,
-        scan_vault_related,
-    )
+    from tools.patent_reader.vault.obsidian_canvas import build_canvas, ensure_canvas_nav
+    from tools.patent_reader.vault.obsidian_claims import harvest_claim_summaries_from_note
+    from tools.patent_reader.vault.obsidian_frontmatter import parse_frontmatter
+    from tools.patent_reader.vault.obsidian_glossary import scan_vault_related
     from tools.patent_reader.write_patent_obsidian_note import (
         harvest_glossary_from_note,
         harvest_narrative_from_note,

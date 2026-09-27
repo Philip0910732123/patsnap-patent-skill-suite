@@ -33,20 +33,34 @@ from pathlib import Path
 
 try:
     from shared.common import (
+        extract_application_number,
         extract_assignees,
+        extract_cited_pub_numbers,
+        extract_filing_date,
+        extract_invention_title,
+        extract_inventors,
         extract_ipc_codes,
+        extract_publication_date,
         guess_independent,
         normalize_claim_tree,
+        organizations_from_assignees,
         parent_claim_number,
         parent_claim_numbers,
         slugify_pub,
     )
 except ImportError:
     from tools.patent_reader.shared.common import (
+        extract_application_number,
         extract_assignees,
+        extract_cited_pub_numbers,
+        extract_filing_date,
+        extract_invention_title,
+        extract_inventors,
         extract_ipc_codes,
+        extract_publication_date,
         guess_independent,
         normalize_claim_tree,
+        organizations_from_assignees,
         parent_claim_number,
         parent_claim_numbers,
         slugify_pub,
@@ -304,6 +318,13 @@ def main(argv: list[str] | None = None) -> int:
     claim_tree = build_claim_tree(claims)
     assignees = extract_assignees(text)
     ipc_codes = extract_ipc_codes(text)
+    inventors = extract_inventors(text)
+    organizations = organizations_from_assignees(assignees)
+    filing_date = extract_filing_date(text)
+    publication_date = extract_publication_date(text)
+    application_number = extract_application_number(text)
+    invention_title = extract_invention_title(text)
+    cited_pubs = extract_cited_pub_numbers(text, pub)
     embodiments = extract_embodiments(text) if not args.abstract_only else []
     background_snippets = extract_background_snippets(text) if not args.abstract_only else []
 
@@ -344,7 +365,14 @@ def main(argv: list[str] | None = None) -> int:
         "independent_claim_count": sum(1 for c in claims if c["is_independent"]),
         "glossary_count": len(glossary),
         "assignees": assignees,
+        "organizations": organizations,
+        "inventors": inventors,
         "ipc_codes": ipc_codes,
+        "filing_date": filing_date,
+        "publication_date": publication_date,
+        "application_number": application_number,
+        "invention_title": invention_title,
+        "cited_pubs": cited_pubs,
         "embodiment_count": len(embodiments),
         "description_paragraph_count": len(description_paragraphs),
     }
@@ -371,7 +399,14 @@ def main(argv: list[str] | None = None) -> int:
         "embodiments": embodiments,
         "background_snippets": background_snippets,
         "assignees": assignees,
+        "organizations": organizations,
+        "inventors": inventors,
         "ipc_codes": ipc_codes,
+        "filing_date": filing_date,
+        "publication_date": publication_date,
+        "application_number": application_number,
+        "invention_title": invention_title,
+        "cited_pubs": cited_pubs,
         "claims": [
             {"number": c["number"], "text": c["text"], "is_independent": c["is_independent"]}
             for c in claims

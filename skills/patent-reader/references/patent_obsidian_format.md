@@ -24,17 +24,38 @@ cssclasses:
 pub_number: CN107785522B
 domain: 化工与材料
 ipc: H01M10/0525
+ipc_codes:
+  - H01M10/0525
 assignees:
   - 某某科技有限公司
+organizations:
+  - 某某科技有限公司
+inventors:
+  - 张三
+filing_date: 2018-06-01
+publication_date: 2021-03-12
+application_number: CN201810000001.0
+invention_title: 一种隔膜
+cited_pubs: []
 read_date: 2026-07-21
 perspective: 入门
 evidence_scope: full_text
 confidence_speculative: false
+tech_means:
+  - 湿法成膜
+tech_effects:
+  - 涂层附着力
+  - 耐热
+tech_effect_pairs:
+  - 湿法成膜 → 涂层附着力
+  - 湿法成膜 → 耐热
 ---
 ```
 
 - `evidence_scope`：`full_text` | `abstract_only` | `partial`
 - `confidence_speculative`：附录 B 含中/低置信公开线索时为 `true`
+- `tech_means` / `tech_effects`：技术功效矩阵用的短标签（4～16 字）；优先复用 `references/tech_effect_hints.yaml`
+- `tech_effect_pairs`：`手段 → 功效` 字符串；一篇可多对。专利地图优先读这三项；没有合格短标签时按 IPC 小类 × 领域占位，不把第七节长句当轴
 - 标签：`patent/evidence/full|abstract|partial`；有推测时加 `patent/speculative`
 
 ## 著录项卡片（L0）
@@ -42,6 +63,7 @@ confidence_speculative: false
 ```markdown
 > [!patent-meta] 著录项
 > - **公开号**：CN…
+> - **发明名称**：…
 > - **领域**：…
 > - **IPC**：…
 ```

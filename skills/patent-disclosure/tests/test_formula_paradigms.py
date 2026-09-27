@@ -122,6 +122,56 @@ class FormulaParadigmsTests(unittest.TestCase):
         self.assertFalse(r["ok"])
         self.assertTrue(any("agent" in e for e in r["errors"]))
 
+    def test_pdf_text_defaults_unverified_warning(self) -> None:
+        plan = {
+            "plain_zh": "从 PDF 文本层抄的主式",
+            "equations": [
+                {
+                    "tag": 1,
+                    "origin": "source",
+                    "source_kind": "pdf_text",
+                    "source_ref": "方案.pdf 第 3 页",
+                    "latex": r"s = \alpha x",
+                }
+            ],
+        }
+        r = check_plan(plan)
+        self.assertTrue(r["ok"], r)
+        self.assertTrue(any("verified=false" in w and "Fk" in w for w in r["warnings"]))
+
+    def test_tex_source_defaults_verified_no_fk_warning(self) -> None:
+        plan = {
+            "plain_zh": "从 tex 转录",
+            "equations": [
+                {
+                    "tag": 1,
+                    "origin": "source",
+                    "source_kind": "tex",
+                    "source_ref": "main.tex 式(1)",
+                    "latex": r"s = \alpha x",
+                }
+            ],
+        }
+        r = check_plan(plan)
+        self.assertTrue(r["ok"], r)
+        self.assertFalse(any("verified=false" in w for w in r["warnings"]))
+
+    def test_invalid_source_kind_errors(self) -> None:
+        plan = {
+            "equations": [
+                {
+                    "tag": 1,
+                    "origin": "source",
+                    "source_kind": "omml",
+                    "source_ref": "x",
+                    "latex": r"s = x",
+                }
+            ],
+        }
+        r = check_plan(plan)
+        self.assertFalse(r["ok"])
+        self.assertTrue(any("source_kind" in e for e in r["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()
