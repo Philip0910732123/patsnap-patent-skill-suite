@@ -23,10 +23,10 @@ from pathlib import Path
 
 try:
     from shared.common import resolve_obsidian_vault, runtime_config
-    from vault.obsidian import bootstrap_vault
+    from vault.obsidian_bootstrap import bootstrap_vault
 except ImportError:
     from tools.patent_reader.shared.common import resolve_obsidian_vault, runtime_config
-    from tools.patent_reader.vault.obsidian import bootstrap_vault
+    from tools.patent_reader.vault.obsidian_bootstrap import bootstrap_vault
 
 
 def main(argv: list[str] | None = None) -> int:

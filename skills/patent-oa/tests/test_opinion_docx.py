@@ -39,6 +39,16 @@ class OpinionStatementDocxTests(unittest.TestCase):
             self.assertTrue(out.is_file())
             self.assertEqual(out.suffix, ".docx")
 
+    def test_bare_paren_warns_but_still_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            md = Path(td) / "意见陈述_test.md"
+            md.write_text(
+                "# 意见陈述书\n\n" + r"记 (M_{\mathrm{total}}) 克。" + "\n",
+                encoding="utf-8",
+            )
+            out = emit_opinion_docx(md)
+            self.assertTrue(out.is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

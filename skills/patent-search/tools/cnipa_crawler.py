@@ -6,12 +6,34 @@
 2. 第一页采「共 N 页」与真实每页条数，再排程；翻页仍点「下页」，不要做「到第 N 页」。
 3. 回退 fetch 时**保留** ``#searchAfter``（清空会导致公布站 HTTP 400）。
 4. 400 退避重试，仍失败则 ``complete=false`` 停止，禁止死循环。
+
+-------------------------------------------------------------------------------
+站点防护特征（实测，改站时请重新验证）
+分析 by Claude Opus 5 Extra High
+-------------------------------------------------------------------------------
+站点为**瑞数类动态 cookie 防护**：首访返回挑战 JS 并**自跳转一次**，由 JS 计算后种下
+动态 cookie 才放行真实 DOM。cookie 名随机成对（形如 ``NOh8RTWx6K2dS`` / ``…T``），
+**不可硬编码**。由此有三条硬约束：
+
+- **UA 必须覆盖**（见 ``_new_context``）：无头默认 UA 含 ``HeadlessChrome``，实测直接不放行，
+  首页 DOM 仅 39 字节、检索框永不出现。
+- **gate 轮询必须吞掉** ``Execution context was destroyed``：自跳转会销毁执行上下文。
+- **纯 HTTP 直连不可行**：把浏览器 cookie 搬进 requests 并配齐请求头，实测只回 202 挑战页；
+  该 cookie 需页面内 JS 持续参与。故必须在浏览器上下文内发请求（本模块翻页回退即如此）。
+
+gate 用 ``wait_until="commit"`` + 短轮询，且**直接打开 /Advanced**：实测无需先过首页。
+先首页再高级页、并用 ``load`` + 3 秒步进轮询的老写法实测 23.9 秒，改后 3.4 秒。
+
+限流绑定**会话**而非 IP：连续无间隔提交约第 3 次即被拒，且同 context 内不可恢复
+（重新 gate 实测 41.5 秒仍过不去），换新 context 才行。本模块是「单次查询 + 翻 1–3 页」，
+页间已有 ``page_delay_ms``；若将来改成多查询循环，需按会话级限流重新设计节流。
 """
 from __future__ import annotations
 
 import hashlib
 import os
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -320,39 +342,79 @@ class PagedSearchResult:
 
 
 def _max_wait_sec() -> float:
-    return float(os.environ.get("EPUB_WAF_MAX_WAIT_SEC", "180"))
+    """gate 轮询上限（秒）。
+
+    默认 30：站点放行通常在 3–4 秒内完成，180 秒只会让真卡住时白等。
+    仍可用 ``EPUB_WAF_MAX_WAIT_SEC`` 上调。
+    """
+    return float(os.environ.get("EPUB_WAF_MAX_WAIT_SEC", "30"))
 
 
 def _headed() -> bool:
     return os.environ.get("PLAYWRIGHT_HEADED", "").strip() in ("1", "true", "yes")
 
 
-def wait_for_epub_home_ready(page: Page, *, max_wait_sec: float | None = None) -> None:
+_GATE_POLL_STEP_SEC = 0.25
+_GATE_GOTO_TIMEOUT_MS = 30_000
+
+
+def _gate(
+    page: Page,
+    url: str,
+    selectors: tuple[str, ...],
+    *,
+    what: str,
+    max_wait_sec: float | None = None,
+) -> None:
+    """打开页面并等到检索字段出现。
+
+    三处要点（站点是瑞数类动态 cookie 防护，实测）：
+
+    1. 字段已在就**不重新 goto**，避免整页重载。
+    2. ``wait_until="commit"``：只等文档开始提交。站点首访会返回挑战 JS 并**自跳转一次**，
+       等 ``load`` 只是白等资源。
+    3. 轮询**先查再等**，且必须吞掉 ``Execution context was destroyed``——
+       自跳转会销毁执行上下文，裸调用 ``query_selector`` 会在这里抛错。
+    """
     limit = max_wait_sec if max_wait_sec is not None else _max_wait_sec()
-    page.goto(EPUB_BASE, wait_until="load", timeout=120_000)
-    elapsed = 0.0
-    step = 3.0
-    while elapsed < limit:
-        page.wait_for_timeout(int(step * 1000))
-        elapsed += step
-        if page.query_selector("#searchStr"):
+    for sel in selectors:
+        if page.query_selector(sel):
             return
+    try:
+        page.goto(url, wait_until="commit", timeout=_GATE_GOTO_TIMEOUT_MS)
+    except (PlaywrightTimeoutError, Error):
+        pass  # 自跳转期间 goto 可能报错，后面以字段是否出现为准
+    deadline = time.monotonic() + limit
+    # 次数与时间双重上限：``wait_for_timeout`` 在测试替身上不会真的等待，
+    # 只靠时间判断会空转到超时。
+    max_polls = int(limit / _GATE_POLL_STEP_SEC) + 2
+    for _ in range(max_polls):
+        for sel in selectors:
+            try:
+                if page.query_selector(sel):
+                    return
+            except Error:
+                pass
+        if time.monotonic() >= deadline:
+            break
+        page.wait_for_timeout(int(_GATE_POLL_STEP_SEC * 1000))
     raise TimeoutError(
-        f"{limit}s 内未出现检索框 #searchStr；可增大 EPUB_WAF_MAX_WAIT_SEC 或设置 PLAYWRIGHT_HEADED=1"
+        f"{limit}s 内未出现{what}；可增大 EPUB_WAF_MAX_WAIT_SEC 或设置 PLAYWRIGHT_HEADED=1"
     )
 
 
+def wait_for_epub_home_ready(page: Page, *, max_wait_sec: float | None = None) -> None:
+    _gate(page, EPUB_BASE, ("#searchStr",), what="检索框 #searchStr", max_wait_sec=max_wait_sec)
+
+
 def wait_for_epub_advanced_ready(page: Page, *, max_wait_sec: float | None = None) -> None:
-    limit = max_wait_sec if max_wait_sec is not None else _max_wait_sec()
-    page.goto(EPUB_ADVANCED, wait_until="load", timeout=120_000)
-    elapsed = 0.0
-    step = 3.0
-    while elapsed < limit:
-        page.wait_for_timeout(int(step * 1000))
-        elapsed += step
-        if page.query_selector("#e51") or page.query_selector("#advForm"):
-            return
-    raise TimeoutError(f"{limit}s 内未出现高级查询页；可增大 EPUB_WAF_MAX_WAIT_SEC")
+    _gate(
+        page,
+        EPUB_ADVANCED,
+        ("#e51", "#advForm"),
+        what="高级查询页",
+        max_wait_sec=max_wait_sec,
+    )
 
 
 def _safe_page_content(page: Page, *, max_attempts: int = 10) -> str:
@@ -905,7 +967,7 @@ def search_advanced(
         context = _new_context(browser)
         try:
             page = context.new_page()
-            wait_for_epub_home_ready(page)
+            # 直接去高级查询页：实测无需先过首页即可放行，省掉一次整页加载。
             wait_for_epub_advanced_ready(page)
             filled = submit_advanced_query(page, fields, patent_type=patent_type)
             result = collect_result_pages(

@@ -66,3 +66,9 @@ python skills/patent-application/tools/emit_application_docx.py --dir <产出目
 ```
 
 公式尽量 OMML；失败记问题清单，仍出 Word。
+
+**行内公式必须写 `\(…\)`**（或全文统一 `$…$`），**禁止**用普通括号包 LaTeX（`(M_{\mathrm{total}})` 在 Word 里是纯文本，常带拼写红线）。Markdown 预览把 `\(` 显示成 `(`，勿据此删反斜杠。`emit_application_docx.py` 遇命中会对该文件打印 **`DOCX: ok=0 reason=latex_delim`** 并**跳过写出**；须改分隔符后再重跑。定稿前可单独跑：
+
+```bash
+python skills/patent-application/tools/latex_delimiters.py -i <产出目录>/说明书.md
+```

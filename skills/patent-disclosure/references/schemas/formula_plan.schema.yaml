@@ -17,7 +17,9 @@ plain_zh: ""                   # 主关系人话
 equations:
   - tag: 1                     # 对应式 (1)
     origin: source             # source = 材料转录；agent = 技能补写
-    source_ref: "设计说明 p.12 式(3)"
+    source_kind: tex           # tex | md | word_text | pdf_text | other（仅 source；agent 可省略）
+    verified: true             # 是否已按源码核对。tex/md 默认真；pdf_text 默认假
+    source_ref: "main.tex 式(3)"
     latex: ""                  # 成文用 LaTeX；source 须对材料
     original_latex: ""         # 可选；仅当成文相对材料做了机械体例改动时保留原文
     role: score                # score | trigger | smooth | assign | constraint | other
@@ -26,6 +28,7 @@ equations:
     paradigm_id: dual_threshold
     latex: ""
     role: trigger
+    # agent 式视为已核（技能自拟），不必填 source_kind / verified
 omitted:                       # 材料里扫到但不进 3.4.1
   - ref: "论文 式(8)"
     reason: "对照实验，与本专利点无关"
@@ -45,7 +48,8 @@ notes_zh: ""
 ## 硬性规则
 
 - 每条 `equations[]` **须标 `origin`**：`source` 或 `agent`（旧计划无 origin 且已填 `paradigm_id` 时，校验按 agent）。
-- `origin: source`：`latex` 对材料；`paradigm_id` 可不填；禁止为套范式而改写。只允许分隔符、`\le`→`\leq`、把「且」挪到公式外等机械体例；改过则填 `original_latex`。`source_ref` 建议填写。
+- `origin: source`：`latex` 对材料；`paradigm_id` 可不填；禁止为套范式而改写。只允许分隔符、`\le`→`\leq`、把「且」挪到公式外等机械体例；改过则填 `original_latex`。`source_ref` 建议填写。建议填 `source_kind`：`tex`（LaTeX 源码链，读链见 `prompts/tex_scan.md`，成文勾选认 `tex_formula_inventory.md`）、`md`、`word_text`（Word 正文里的字，**不是** OMML 无损还原）、`pdf_text`（`pdf_to_md` 文本层）、`other`。
+- **`verified`（未核对）**：`true` / `false`。未填时：`tex`/`md`/`agent` 视为已核；`pdf_text` 视为未核。未核的式子**可以**写入 3.4.1 作材料转述，**不得**当作区别特征 Fk 或创造性依据。不因此中断成文、不问用户补材料。
 - `origin: agent`：材料没有对应式才允许；`paradigm_id` / 根级 `paradigm_ids` 必须能在合并后的范式库中找到。遵守禁 `\tilde`/`\hat`/`\bar` 等。
 - 材料式子多：按**已选专利点 / 3.3 / 3.4** 勾选进 `equations`；不采用的写入 `omitted`（`ref` + `reason`），禁止静默丢掉。
 - `numeric_example`：含 agent 式时须给主式一组输入与结果。全为 source 时鼓励给，复杂式可手算或从缺（校验警告、不阻断）。

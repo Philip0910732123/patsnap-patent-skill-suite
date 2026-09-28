@@ -13,7 +13,9 @@
 **专利类型**：``--type invention|utility_model|design|all``（默认 ``all``）。
 对应首页勾选：发明公布+发明授权 / 实用新型 / 外观设计（见 ``tools/patent_type.py``）。
 第二轮收口：``--class B01J20``（发明/实用 IPC）或 ``--class 26-05``（外观 LOC），走公布站高级查询「分类号+名称」。
+默认一次命令 **1 个分类号 × 1 个名称词**（``cnipa_epub_wait.yaml``）；多传会截断并在 stderr 提示，请另开一条命令。
 仅分类号保底：``--type design --class 26-05``（不跟检索词）。
+等待参数：同目录 ``cnipa_epub_wait.yaml``（优先）/ ``cnipa_epub_wait.DEFAULTS``（回退）。
 
 用法：
 
@@ -29,7 +31,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -43,10 +44,42 @@ for p in (_CRAWL, _TOOLS):
 
 from patent_type import TYPE_ALL, normalize_patent_type
 from stdio_utf8 import ensure_utf8_stdio
+from cnipa_epub_wait import EpubNavError, load_wait_config, wait_yaml_path
 
-_MAX_TERMS = 8
-_MAX_CLASS_CODES = 3
-_MAX_TERMS_WITH_CLASS = 3
+
+def _cap(items: list[str], max_n: int) -> tuple[list[str], list[str]]:
+    if max_n <= 0 or len(items) <= max_n:
+        return list(items), []
+    return items[:max_n], items[max_n:]
+
+
+def _apply_caps(
+    terms: list[str],
+    class_codes: list[str],
+    cfg: dict,
+) -> tuple[list[str], list[str]]:
+    if class_codes:
+        kept_codes, skipped_codes = _cap(
+            class_codes, int(cfg["advanced_max_class_codes"])
+        )
+        kept_terms, skipped_terms = _cap(terms, int(cfg["advanced_max_terms"]))
+        if skipped_codes or skipped_terms:
+            print(
+                "EPUB_HINT: truncated class=%d->%d terms=%d->%d yaml=%s skipped_class=%s skipped_term=%s"
+                % (
+                    len(class_codes),
+                    len(kept_codes),
+                    len(terms),
+                    len(kept_terms),
+                    wait_yaml_path(),
+                    ",".join(skipped_codes) or "-",
+                    ",".join(skipped_terms) or "-",
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+        return kept_terms, kept_codes
+    return terms, class_codes
 
 
 def _parse_argv(argv: list[str]) -> tuple[str, list[str], list[str]]:
@@ -136,23 +169,18 @@ def main(argv: list[str] | None = None) -> int:
     if not terms and not class_codes:
         _usage()
         return 2
-    if class_codes and len(class_codes) > _MAX_CLASS_CODES:
-        print(
-            "ERROR: too many --class codes (%d > %d); keep 1-3 prefixes."
-            % (len(class_codes), _MAX_CLASS_CODES),
-            file=sys.stderr,
-        )
-        return 2
-    max_terms = _MAX_TERMS_WITH_CLASS if class_codes else _MAX_TERMS
-    if terms and len(terms) > max_terms:
-        print(
-            "ERROR: too many terms after split (%d > %d); shorten or run in batches."
-            % (len(terms), max_terms),
-            file=sys.stderr,
-        )
-        return 2
-
-    os.environ.setdefault("EPUB_WAF_MAX_WAIT_SEC", "180")
+    cfg = load_wait_config()
+    if not class_codes:
+        max_home = int(cfg["home_max_terms"])
+        if terms and len(terms) > max_home:
+            print(
+                "ERROR: too many terms after split (%d > %d); shorten or run in batches."
+                % (len(terms), max_home),
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        terms, class_codes = _apply_caps(terms, class_codes, cfg)
 
     try:
         import playwright
@@ -176,6 +204,15 @@ def main(argv: list[str] | None = None) -> int:
         rows = search_epub_keywords(
             terms, patent_type=patent_type, class_codes=class_codes or None
         )
+    except EpubNavError as e:
+        print("CNIPA_EPUB_ERROR:", e, file=sys.stderr, flush=True)
+        print(
+            "EPUB_HINT: nav_failed stage=%s hint=%s"
+            % (e.stage, e.hint or "-"),
+            file=sys.stderr,
+            flush=True,
+        )
+        return 1
     except Exception as e:
         print("CNIPA_EPUB_ERROR:", e, file=sys.stderr)
         return 1

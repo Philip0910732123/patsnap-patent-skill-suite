@@ -3,13 +3,13 @@ name: patsnap-patent-skill-suite
 description: "中国专利全流程技能套件（智慧芽 MCP 增强）：挖掘专利点与编写交底书（发明/实用/外观），把已有交底改写成申请文件四件套，也可按材料交底申请一起做，著录检索支持智慧芽 MCP 语义检索与同族/引证分析，通俗解读专利，对照审查口径出政策简报，辅助审查答复。| China patents skill suite (PatSnap MCP enhanced): mine patent points and draft disclosures, rewrite an existing disclosure into application documents, search patents via PatSnap MCP with semantic search and family/citation analysis, explain patents, brief examination-policy changes, and assist office-action responses."
 version: "1.0.0"
 user-invocable: true
-argument-hint: "[可选：项目路径 / 交底书 / 申请底稿 / 交底申请一起做 / 专利检索 / 专利号或 PDF / 政策简报 / 审查答复]"
+argument-hint: "[可选：项目路径 / 交底书 / 申请底稿 / 交底申请一起做 / 专利检索 / 专利号或 PDF / 专利地图 / 专利围栏 / 政策简报 / 审查答复]"
 allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 ---
 
 # 中国专利技能
 
-按用户意图 **`Read`** 对应入口的 `SKILL.md`，再按该流程执行。
+按用户意图 **`Read`** 对应入口的 `SKILL.md`，再按该流程执行。**先查「路由判定表」定去向，再看「通则」。**
 
 | 能力 | 做什么 | 何时进入 | 入口 |
 |------|--------|----------|------|
@@ -23,7 +23,16 @@ allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 | **全景分析** | 技术赛道检索→趋势/构成/申请人排名/技术地图/生命周期多维度分析 | **须显式**：全景分析、技术赛道、竞争格局、专利 landscape、`/patent-landscape`。仅 MCP 模式，无降级 | `skills/patent-landscape/SKILL.md` |
 | **FTO** | 产品/技术方案→风险专利识别+权要对比+风险等级+规避方向 | **须显式**：FTO、自由实施、侵权风险、风险专利、`/patent-fto`、`/fto`。仅 MCP 模式，无降级 | `skills/patent-fto/SKILL.md` |
 
-## 路由
+| 能力 | 做什么 | 入口 |
+|------|--------|------|
+| **交底** | 挖专利点 → 查新 → 成稿 → 迭代（发明 / 实用新型 / 外观）；首篇定稿后可做保护型 1+N 专利布局 | `skills/patent-disclosure/SKILL.md` |
+| **申请文件** | 已有交底 → 权要 / 说明书 / 摘要 / 附图 | `skills/patent-application/SKILL.md` |
+| **案卷** | 按发明人/工程师给的材料一趟写出交底书和申请文件 | `skills/patent-docket/SKILL.md` |
+| **检索** | 公布站高级查询（发明人/申请人/分类号/名称/摘要等）；单图或权要可先抽关键字再查 | `skills/patent-search/SKILL.md` |
+| **解读** | 公开号 / PDF / 全文 → 通俗笔记 + 图谱 | `skills/patent-reader/SKILL.md` |
+| **专利地图** | 已解读入库的案例摊成五种图（语义地形） | `skills/patent-map/SKILL.md` |
+| **审查答复** | 审查意见问答与草稿；库薄时引导入库/蒸馏 | `skills/patent-oa/SKILL.md` |
+| **政策简报** | 对照国知局口径，说明对交底写法/本稿的影响；改技能仅为旁路 | `skills/patent-exam-policy/SKILL.md` |
 
 - 填表、线稿、CAD、公式、Word 出图在交底包 `prompts/` 与 `tools/`；解读填表用解读包 `prompts/fill_*`；Markdown 转 Word 的 `md_to_docx.py` **各包自带副本**。
 - **禁止跨包调用**其他子技能的 `tools/`。需要同一能力就用本包副本。
@@ -38,11 +47,12 @@ allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 
 ```
 SKILL.md                         # 本文件：子技能路由入口
-skills/patent-disclosure/        # 交底（含填表/线稿/CAD/公式/docx）
+skills/patent-disclosure/        # 交底（含填表/线稿/CAD/公式/docx；围栏旁路）
 skills/patent-application/       # 申请文件四件套（须显式；须指定交底目录）
 skills/patent-docket/            # 案卷：交底到申请一趟串起来（须显式）
 skills/patent-search/            # 著录检索
 skills/patent-reader/            # 解读
+skills/patent-map/               # 专利地图（须显式；读 vault，本机页面）
 skills/patent-oa/                # 审查答复
 skills/patent-exam-policy/        # 政策简报（技能进化为旁路）
 skills/patent-landscape/           # 全景分析（须显式；仅 MCP）
@@ -60,7 +70,7 @@ skills/patent-fto/                 # FTO 自由实施分析（须显式；仅 MC
 ## 执行前核对
 
 ```
-□ 已 Read 对应 skills/*/SKILL.md，未把本文件当交底/申请底稿/案卷/检索/解读正文
+□ 已 Read 对应 skills/*/SKILL.md，未把本文件当交底/申请底稿/案卷/检索/解读/专利地图正文
 □ 交底查新未调用 patent-search
 □ 著录检索未用交底一词一页结果冒充清单
 □ 政策简报 / 审查答复 / 申请文件 / 案卷仅在显式触发时进入
@@ -68,5 +78,7 @@ skills/patent-fto/                 # FTO 自由实施分析（须显式；仅 MC
 □ 申请文件已指定交底目录；门禁未过未开写
 □ 案卷未写交底/申请正文；派工只 Read 对方 SKILL.md
 □ 未跨包调用其他子技能的 tools/
+□ 围栏未确认立项说明未批量写多篇；未把布局说明当成专利地图
 □ 未把政策简报当成改技能；无点名未改交底包以外的目录
+□ 交付回复末块标题为「交付后请确认」；交底该节未把申请、案卷、地图列为下一步
 ```

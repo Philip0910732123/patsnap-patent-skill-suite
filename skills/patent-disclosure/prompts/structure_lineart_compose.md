@@ -71,7 +71,7 @@ image_path: lineart_assist/总装立体图_structure_lineart.png   # 可选；�
 output_svg_path: lineart_assist/总装立体图_structure_lineart_callouts.svg
 ```
 
-然后照旧跑 `structure_callout_overlay.py`。校正件号只改锚点 YAML，**禁止**为纠号而重绘轮廓或重拼零件。需要 PNG 预览再用 `svg_screenshot.py`。
+然后照旧跑 `structure_callout_overlay.py`（默认会按墨线校正序号位置与引线终点）。校正件号只改锚点 YAML，**禁止**为纠号而重绘轮廓或重拼零件。需要 PNG 预览再用 `svg_screenshot.py`。
 
 ## 自检（内部）
 

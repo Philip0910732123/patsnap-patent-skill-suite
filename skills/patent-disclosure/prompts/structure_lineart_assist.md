@@ -54,7 +54,11 @@ python skills/patent-disclosure/tools/structure_lineart_gate.py \
 
 1. **轮廓层**（`mode` 不是 `existing_lineart` 时）：按 `image_gen.md` 图生图或「先描述再文生图」或文生图，写入 `output_path`。已有合格线稿则用原图当本视轮廓。  
 2. **按件拼装（必做）**：**`Read`** `prompts/structure_lineart_compose.md`。按 `parts` 写 `structure_lineart_compose.yaml`（每件一个槽位），跑 `structure_lineart_compose.py`：每件落 `lineart_assist/parts/{视}_{id}.svg`，总图 `*_composed.svg` 相对引用子文件。总装用 `crop`（子文件裁总装 PNG，隔离弱）；爆炸/分件用每件小图 `image`（仅 schema 已分开的可分离件，须先有单件图）。不要把整图 base64+clip 进总 SVG，也不要把一件再拆成筋/齿/螺栓。  
-3. **锚点定位**（`callout_mode: overlay`）：大模型读取**拼装后的图**（优先 composed SVG 的预览，或无号轮廓），逐个定位 job `callouts` 对应部件；把归一化 `anchor`、附近留白区 `label`、`confidence` 持久化到案件目录 `structure_callout_anchors.yaml`。合同见 `references/schemas/structure_callout_anchors.schema.yaml`。该视填写 `base_svg_path` 指向 composed SVG。锚点须落在对应部件轮廓上或紧邻轮廓，序号应围绕结构就近分散，禁止全部排到画布边缘。
+3. **锚点定位**（`callout_mode: overlay`）：大模型读取**拼装后的图**（优先 composed SVG 的预览，或无号轮廓），逐个定位 job `callouts` 对应部件；把归一化 `anchor`、附近**图外留白** `label`、`confidence` 持久化到案件目录 `structure_callout_anchors.yaml`。合同见 `references/schemas/structure_callout_anchors.schema.yaml`。该视填写 `base_svg_path` 指向 composed SVG。
+
+   - **`anchor`**：引出线末端，必须落在**该件可见墨线**上（轮廓或剖面线），禁止停在空腔、孔洞内部或背景白底。
+   - **`label`**：序号数字必须在整图**外轮廓之外**的留白里，禁止压在实体、剖面线、内腔或孔内；不要用 crop 窗的角点当序号位置（窗里往往仍是剖面线）。
+   - 序号围绕结构就近分散，禁止全部排到画布同一条边；多条线从不同方向引出。
 4. **精确叠标**：运行：
 
 ```bash
@@ -63,14 +67,15 @@ python skills/patent-disclosure/tools/structure_callout_overlay.py \
   --anchors "outputs/{案件标识}/structure_callout_anchors.yaml"
 ```
 
-有 `base_svg_path` 时，脚本把件号组**注入**拼装 SVG，不覆盖零件图层。Python 只校验件号合法、坐标 0..1、置信度与 label 间距；**不判断标没标对部件**。结果写入 `output_svg_path`。需要 PNG 时再用 `svg_screenshot.py --svg … --png …`。
+有 `base_svg_path` 时，脚本把件号组**注入**拼装 SVG，不覆盖零件图层。默认会按原图墨线**校正**：把压在实体/内腔上的序号推到外轮廓留白，把落在空腔的引线终点吸到最近墨线。`--no-autolayout` 可关闭。Python 仍不判断「标的是不是这件」；结果写入 `output_svg_path`。需要 PNG 时再用 `svg_screenshot.py --svg … --png …`。
 
 5. **叠标后语义自查（必做，最多 2 轮校正）**：Python 通过 ≠ 图面对。须 **`Read` 叠标后的 PNG/SVG**（不要只看无号轮廓），对照本视 `visible_part_ids` + `structure_schema.parts` 的 **id+名称**：
 
    | 查什么 | 不合格则 |
    |--------|----------|
    | 每个必标件号是否都在图上 | 补锚点后重叠标 |
-   | 引出线末端是否落在**该名称对应的构造**上（不是邻件） | 改 `anchor`/`label`，禁止改件号 |
+   | 序号是否压在实体、剖面线、内腔或孔内 | 改 `label` 到图外留白；优先让 overlay 自动推（不要靠 crop 窗角） |
+   | 引出线末端是否落在**该名称对应的构造墨线**上（不是邻件、不是空腔） | 改 `anchor`/`label`，禁止改件号 |
    | 相邻易混件是否对调（腔体↔腔内件、轴↔转子、接头↔法兰、剖切符号↔零件） | 按名称把锚点挪到正确轮廓 |
    | 图上有号但 `visible_part_ids` 没有的 | 删该 callout，禁止自创件号 |
    | 序号全贴画布边缘、引出线全竖直/全水平 | 把 label 就近散开，改 `route` |
@@ -112,7 +117,7 @@ python skills/patent-disclosure/tools/structure_callout_overlay.py \
 - [ ] 已跑 `image_gen.py`；CAD 未当合格线稿、未入文  
 - [ ] 已按 `structure_lineart_compose.md` 写出 `parts/{视}_{id}.svg` 与相对引用的总 SVG（非扁图、非总图 clip 整图）；一层一件号，未把筋/齿/螺栓拆成独立组  
 - [ ] `parts_legend` / 图上件号与 StructureSchema 一致；跨图未改号  
-- [ ] `structure_callout_anchors.yaml` 已落盘且含 `base_svg_path`；已 Read 叠标后的图；件号与部件名称一一对应（非仅坐标合法）；label 就近分散，引出方向不单一；校正只改 YAML 重叠标
+- [ ] `structure_callout_anchors.yaml` 已落盘且含 `base_svg_path`；已 Read 叠标后的图；件号与部件名称一一对应；序号在结构外、引线末端在墨线上；校正只改 YAML 重叠标
 - [ ] `uncertain` 件未画死序号、未用 crop/image 冒充已绘结构  
 - [ ] 优先 overlay；未自创件号或子件号；轮廓层未画剖切箭头 / 中心线 / 件号  
 - [ ] 未误用 `design_lineart_*`  

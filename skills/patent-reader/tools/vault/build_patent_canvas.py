@@ -29,7 +29,9 @@ from pathlib import Path
 
 try:
     from shared.common import optional_path, resolve_domain, runtime_config
-    from vault.obsidian import build_canvas, harvest_claim_summaries_from_note, scan_vault_related
+    from vault.obsidian_canvas import build_canvas
+    from vault.obsidian_claims import harvest_claim_summaries_from_note
+    from vault.obsidian_glossary import scan_vault_related
     from vault.write_patent_obsidian_note import (
         harvest_glossary_from_note,
         harvest_narrative_from_note,
@@ -37,11 +39,9 @@ try:
     )
 except ImportError:
     from tools.patent_reader.shared.common import optional_path, resolve_domain, runtime_config
-    from tools.patent_reader.vault.obsidian import (
-        build_canvas,
-        harvest_claim_summaries_from_note,
-        scan_vault_related,
-    )
+    from tools.patent_reader.vault.obsidian_canvas import build_canvas
+    from tools.patent_reader.vault.obsidian_claims import harvest_claim_summaries_from_note
+    from tools.patent_reader.vault.obsidian_glossary import scan_vault_related
     from tools.patent_reader.write_patent_obsidian_note import (
         harvest_glossary_from_note,
         harvest_narrative_from_note,

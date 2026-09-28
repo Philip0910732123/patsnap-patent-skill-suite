@@ -21,6 +21,18 @@ from md_to_docx import convert_md_to_docx  # noqa: E402
 from stdio_utf8 import ensure_utf8_stdio  # noqa: E402
 
 
+def _warn_bare_paren_latex(md_path: Path, text: str) -> None:
+    """行内公式写成普通括号时提示 ``LATEX_DELIM:``，不阻断出 Word。"""
+    try:
+        from latex_delimiters import find_bare_paren_latex, format_hits_report
+    except ImportError:
+        return
+    hits = find_bare_paren_latex(text)
+    if hits:
+        print(f"LATEX_DELIM_FILE: {md_path.name}", file=sys.stderr)
+        print(format_hits_report(hits), file=sys.stderr)
+
+
 def emit_opinion_docx(md_path: Path, docx_path: Path | None = None) -> Path:
     md_path = md_path.resolve()
     if not md_path.is_file():
@@ -28,6 +40,7 @@ def emit_opinion_docx(md_path: Path, docx_path: Path | None = None) -> Path:
     out = (docx_path or md_path.with_suffix(".docx")).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     text = md_path.read_text(encoding="utf-8")
+    _warn_bare_paren_latex(md_path, text)
     doc = convert_md_to_docx(text, base_dir=md_path.parent, prefer_omml=False)
     doc.save(str(out))
     return out
