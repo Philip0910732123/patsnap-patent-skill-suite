@@ -2,9 +2,9 @@ name: Sync Upstream
 
 on:
   schedule:
-    # 每天 UTC 02:00（北京时间 10:00）自动执行
+    # Run daily at UTC 02:00 (Beijing 10:00)
     - cron: '0 2 * * *'
-  workflow_dispatch: # 支持手动触发
+  workflow_dispatch: # Manual trigger
 
 jobs:
   sync:
@@ -49,7 +49,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if git merge upstream/main --no-edit; then
             echo "merge_success=true" >> $GITHUB_OUTPUT
-            echo "Merge succeeded, pushing directly."
+            echo "Merge succeeded, will push directly."
           else
             echo "merge_success=false" >> $GITHUB_OUTPUT
             echo "Merge conflict detected, will create PR."
@@ -64,36 +64,33 @@ jobs:
       - name: Create PR (conflict)
         if: steps.check.outputs.has_changes == 'true' && steps.merge.outputs.merge_success == 'false'
         run: |
-          BRANCH="sync-upstream-$(date +%Y%m%d)"
+          BRANCH="sync-upstream-$(date +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH"
-          # 尝试合并，保留冲突标记
           git merge upstream/main --no-edit || true
           git add -A
           git commit -m "sync: merge upstream (conflicts need review)" || true
           git push origin "$BRANCH"
-          # 创建 PR
+          # Create label if not exists
+          gh label create "sync-upstream" --color "1f883d" --description "Auto-sync from upstream" 2>/dev/null || true
+          # Create PR
           gh pr create \
-            --title "🔄 Sync upstream: ${{ steps.check.outputs.upstream_sha }}" \
-            --body "$(cat <<'EOF'
-          ## 上游仓库有更新
+            --title "Sync upstream: new commits from handsomestWei/patent-disclosure-skill" \
+            --body "## Upstream has new updates
 
-          上游 `handsomestWei/patent-disclosure-skill` 有新的提交，自动合并时检测到冲突。
+          The upstream repository has new commits that conflict with this fork's modifications.
 
-          ### 需要手动处理
-          请 review 冲突文件，解决冲突后合并此 PR。
+          ### What needs manual review
+          Please review the conflicted files, resolve conflicts, then merge this PR.
 
-          **冲突原因**：本仓库对上游部分文件做了改造（如检索层重写、新增子技能等），与上游更新产生了冲突。
+          **Conflict reason**: This repo modified upstream files (search layer rewrite, new sub-skills, etc.) which now conflict with upstream changes.
 
-          ### 建议
-          - 检查上游更新内容是否值得合并
-          - 对于本仓库已改造的文件（如 `skills/patent-search/`），保留本仓库版本
-          - 对于上游新增的文件，接受上游版本
-          - 解决冲突后合并此 PR
+          ### Suggested resolution
+          - For files this repo already modified (e.g. \`skills/patent-search/\`): keep this repo's version
+          - For new files added by upstream: accept upstream's version
+          - Resolve conflicts and merge this PR
 
           ---
-          *此 PR 由 GitHub Actions 自动创建*
-          EOF
-          )" \
+          *This PR was auto-created by GitHub Actions*" \
             --base main \
             --head "$BRANCH" \
             --label "sync-upstream"
