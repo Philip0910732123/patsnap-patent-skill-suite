@@ -124,6 +124,12 @@ def main(argv: list[str] | None = None) -> int:
     if "ipc:" not in note[:1200] and "IPC" not in note[:2500]:
         issues.append("missing_ipc_field")
 
+    if not (
+        re.search(r"^tech_means:\s*\n\s+- ", note[:4500], re.M)
+        or re.search(r"^tech_effect_pairs:\s*\n\s+- ", note[:4500], re.M)
+    ):
+        warnings.append("tech_effect_fields_missing")
+
     # 第三节：推荐单一树形表（缺则 warning）
     sec3 = re.search(r"##\s*三、权利要求树[\s\S]*?(?=##\s*四、)", note)
     if sec3:

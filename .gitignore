@@ -35,6 +35,7 @@ skills/patent-disclosure/tests/_math_test_bad.md
 skills/patent-reader/assets/obsidian/*.base
 skills/patent-oa/assets/obsidian/*.base
 
-# OS
-.DS_Store
-Thumbs.db
+# IPC 方案源文件（只提交编译后的 ipc_subclasses_*.csv）
+skills/patent-map/data/_ipc_*
+skills/patent-map/data/_c08g*
+skills/patent-map/tools/ipc_scheme/cache/

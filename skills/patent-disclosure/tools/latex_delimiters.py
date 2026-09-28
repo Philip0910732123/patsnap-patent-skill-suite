@@ -4,7 +4,8 @@
 ``md_to_docx.py`` 只认 ``\\(...\\)`` / ``$...$``。写成 ``(M_{\\mathrm{total}})`` 会原样进正文。
 Markdown 预览常把 ``\\(`` 显示成 ``(``，写稿时不要据此删反斜杠。
 
-围栏代码块与行内 `` `...` `` 不扫（避免文档反例、mermaid 源码误报）。
+围栏代码块、行内 `` `...` ``，以及已用 ``\\(...\\)`` / ``$...$`` / ``$$...$$`` / ``\\[...\\]``
+包住的公式不扫（公式内 ``\\bigl(`` / ``\\max(`` / ``\\left(`` 等合法嵌套不算违规）。
 
 用法：
   python tools/latex_delimiters.py -i disclosure.md
@@ -38,6 +39,8 @@ _BARE_PAREN_SUB = re.compile(r"(?<!\\)\([A-Za-z][A-Za-z0-9]*_\{[^()\n]{0,120}\)"
 
 _INLINE_CODE = re.compile(r"`[^`]*`")
 _FENCE_OPEN = re.compile(r"^(```|~~~)")
+# 与 math_render._INLINE_RE 同口径；先遮 $$ 后再用，避免吃掉块级定界符。
+_INLINE_DOLLAR = re.compile(r"(?<!\$)\$(?!\$)((?:\\.|[^$\n])+?)\$(?!\$)")
 
 
 @dataclass(frozen=True)
@@ -46,22 +49,85 @@ class BareParenHit:
     snippet: str
 
 
-def _mask_inline_code(line: str) -> str:
-    return _INLINE_CODE.sub(lambda m: " " * len(m.group(0)), line)
+def _blank_spans(text: str, spans: list[tuple[int, int]]) -> str:
+    if not spans:
+        return text
+    buf = list(text)
+    for start, end in spans:
+        for i in range(start, min(end, len(buf))):
+            if buf[i] != "\n":
+                buf[i] = " "
+    return "".join(buf)
+
+
+def _fence_spans(text: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    in_fence = False
+    fence_start = 0
+    pos = 0
+    for line in text.splitlines(keepends=True):
+        if _FENCE_OPEN.match(line.lstrip()):
+            if not in_fence:
+                in_fence = True
+                fence_start = pos
+            else:
+                in_fence = False
+                spans.append((fence_start, pos + len(line)))
+        pos += len(line)
+    if in_fence:
+        spans.append((fence_start, pos))
+    return spans
+
+
+def _iter_delim_spans(text: str, opener: str, closer: str) -> list[tuple[int, int]]:
+    """配对定界符；公式体内允许裸 ``)`` / ``]``，终结符必须是 closer。"""
+    spans: list[tuple[int, int]] = []
+    i = 0
+    n = len(text)
+    ol = len(opener)
+    cl = len(closer)
+    while i < n:
+        if text.startswith(opener, i):
+            j = i + ol
+            while j < n:
+                if text.startswith(closer, j):
+                    spans.append((i, j + cl))
+                    i = j + cl
+                    break
+                if text[j] == "\\" and j + 1 < n:
+                    j += 2
+                else:
+                    j += 1
+            else:
+                i += ol
+        else:
+            i += 1
+    return spans
+
+
+def _mask_inline_code(text: str) -> str:
+    return _INLINE_CODE.sub(lambda m: " " * len(m.group(0)), text)
+
+
+def _mask_protected(md: str) -> str:
+    """先遮围栏与行内代码，再遮已合法定界的公式（顺序不可反）。"""
+    text = _blank_spans(md, _fence_spans(md))
+    text = _mask_inline_code(text)
+    text = _blank_spans(text, _iter_delim_spans(text, "$$", "$$"))
+    text = _INLINE_DOLLAR.sub(lambda m: " " * len(m.group(0)), text)
+    text = _blank_spans(text, _iter_delim_spans(text, "\\[", "\\]"))
+    text = _blank_spans(text, _iter_delim_spans(text, "\\(", "\\)"))
+    return text
 
 
 def find_bare_paren_latex(md: str) -> list[BareParenHit]:
     """返回普通括号包 LaTeX 的命中（1-based 行号）。"""
     hits: list[BareParenHit] = []
-    in_fence = False
-    for i, raw in enumerate((md or "").splitlines(), 1):
-        stripped = raw.lstrip()
-        if _FENCE_OPEN.match(stripped):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-        line = _mask_inline_code(raw)
+    source = md or ""
+    masked = _mask_protected(source)
+    orig_lines = source.splitlines()
+    mask_lines = masked.splitlines()
+    for i, (raw, line) in enumerate(zip(orig_lines, mask_lines), 1):
         seen: set[tuple[int, int]] = set()
         for cre in (_BARE_PAREN_CMD, _BARE_PAREN_SUB):
             for m in cre.finditer(line):
@@ -69,7 +135,7 @@ def find_bare_paren_latex(md: str) -> list[BareParenHit]:
                 if span in seen:
                     continue
                 seen.add(span)
-                snippet = m.group(0).strip()
+                snippet = raw[span[0] : span[1]].strip() or m.group(0).strip()
                 if len(snippet) > 80:
                     snippet = snippet[:77] + "..."
                 hits.append(BareParenHit(line=i, snippet=snippet))

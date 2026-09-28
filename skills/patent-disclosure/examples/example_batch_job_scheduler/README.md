@@ -6,4 +6,4 @@
 
 | 路径 | 说明 |
 |------|------|
-| `knowledge/` | **虚构「项目原材料」**：架构说明、示例 Word/PPT（含图）、调度示例代码，供 Step 2 与 Office→MD 演练 |
+| `knowledge/` | **虚构「项目原材料」**：架构说明、示例 Word/PPT（含图）、`.tex` 源码、调度示例代码，供 Step 2 与 Office→MD / LaTeX 读链演练 |

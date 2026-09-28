@@ -64,7 +64,7 @@
 - [ ] 已交付同名 `.md` 与 `.docx`，两套都嵌实拍与线稿  
 - [ ] 未把功能构造写成外观要点  
 - [ ] 查新 `--type design`；已按 LOC 做 `--class` 第二轮（或第一轮无分类号已按造型要点过滤）；不足 4 条已同 LOC 回补，未编造凑数  
-- [ ] 交付回复：若适用，已按 **`skills/patent-exam-policy/prompts/soft_nudge.md`** 决定是否加政策简报一句（低频）
-- [ ] 交付回复末尾：若 cad_scan 为 `ask_enable_step_parse`，交底已落盘后再反问是否开启 STEP 解析；未得「是」未装依赖
+- [ ] 交付回复末块为 **`## 交付后请确认`**（`../delivery_confirm.md`）；政策简报仅第 4 条且按 **`skills/patent-exam-policy/prompts/soft_nudge.md`**
+- [ ] **`## 交付后请确认` 第 1 条**：若 cad_scan 为 `ask_enable_step_parse`，交底已落盘后再以 **`(b)` 标签**反问是否开启 STEP 解析；未得「是」未装依赖；若同轮公式 PNG 也待问则按 `delivery_confirm.md` 让位于 `(a)`
 
 表例见同目录 **`template_reference.md`**。

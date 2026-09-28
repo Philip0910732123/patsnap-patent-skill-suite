@@ -36,6 +36,7 @@
 - `pkg/scheduler/reorder.go`：限频重排队触发与窗口重排
 - `pkg/scheduler/heartbeat.go`：心跳与假死判定（示例）
 
-## 6. 同目录 Office 示例（可选扫描）
+## 6. 同目录其它示例（可选扫描）
 
 - `sample_architecture_review.docx`、`sample_scheduler_deck.pptx`：与本节口径一致的**虚构** Word/PPT，内嵌示意 PNG，用于 `docx_to_md` / `pptx_to_md` 演练；文件说明见同目录 `README.md`。
+- 上级目录 `../tex/`：虚构论文源码。Step 2 先 `Read prompts/tex_scan.md`，写 `tex_formula_inventory.md`。说明见 `../tex/README.md`。

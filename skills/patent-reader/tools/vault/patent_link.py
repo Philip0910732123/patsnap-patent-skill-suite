@@ -7,20 +7,12 @@ from pathlib import Path
 
 try:
     from shared.common import slugify_pub
-    from vault.obsidian import (
-        build_canvas,
-        ensure_canvas_nav,
-        parse_frontmatter,
-        render_frontmatter,
-    )
+    from vault.obsidian_canvas import build_canvas, ensure_canvas_nav
+    from vault.obsidian_frontmatter import parse_frontmatter, render_frontmatter
 except ImportError:
     from tools.patent_reader.shared.common import slugify_pub
-    from tools.patent_reader.vault.obsidian import (
-        build_canvas,
-        ensure_canvas_nav,
-        parse_frontmatter,
-        render_frontmatter,
-    )
+    from tools.patent_reader.vault.obsidian_canvas import build_canvas, ensure_canvas_nav
+    from tools.patent_reader.vault.obsidian_frontmatter import parse_frontmatter, render_frontmatter
 
 PUB_RE = re.compile(r"\b([A-Z]{2}\d{6,}[A-Z]?\d?)\b", re.I)
 SECTION5_RE = re.compile(
@@ -77,9 +69,9 @@ def load_patent_notes(vault: Path, papers_dir: str) -> list[dict]:
     if not root.is_dir():
         return notes
     try:
-        from vault.obsidian import is_spurious_patent_note
+        from vault.obsidian_glossary import is_spurious_patent_note
     except ImportError:
-        from tools.patent_reader.vault.obsidian import is_spurious_patent_note
+        from tools.patent_reader.vault.obsidian_glossary import is_spurious_patent_note
 
     for md in sorted(root.rglob("*.md")):
         if md.name.startswith("_") or "_解读_" not in md.name:
@@ -342,13 +334,13 @@ def rebuild_note_canvas(
 ) -> str:
     """按关联结果刷新单篇图谱 Canvas（保留叙事/术语含义）。"""
     try:
-        from vault.obsidian import harvest_claim_summaries_from_note
+        from vault.obsidian_claims import harvest_claim_summaries_from_note
         from vault.write_patent_obsidian_note import (
             harvest_glossary_from_note,
             harvest_narrative_from_note,
         )
     except ImportError:
-        from tools.patent_reader.vault.obsidian import harvest_claim_summaries_from_note
+        from tools.patent_reader.vault.obsidian_claims import harvest_claim_summaries_from_note
         from tools.patent_reader.write_patent_obsidian_note import (
             harvest_glossary_from_note,
             harvest_narrative_from_note,

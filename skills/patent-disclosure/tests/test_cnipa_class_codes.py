@@ -21,7 +21,7 @@ from cnipa_epub_parse import (
     select_hits_for_disclosure,
     suggest_class_codes,
 )
-from cnipa_epub_search import _parse_argv, main as search_main
+from cnipa_epub_search import _apply_caps, _parse_argv, main as search_main
 from patent_type import google_patents_websearch_query
 
 _FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -182,6 +182,19 @@ class SearchArgvTests(unittest.TestCase):
 
     def test_main_requires_terms_or_class(self) -> None:
         self.assertEqual(search_main([]), 2)
+
+    def test_advanced_caps_default_one_by_one(self) -> None:
+        cfg = {
+            "advanced_max_class_codes": 1,
+            "advanced_max_terms": 1,
+        }
+        terms, codes = _apply_caps(
+            ["均流环", "喷淋", "双腔"],
+            ["H02K9", "H02K1", "H02K3"],
+            cfg,
+        )
+        self.assertEqual(codes, ["H02K9"])
+        self.assertEqual(terms, ["均流环"])
 
 
 class GooglePatentsClassTests(unittest.TestCase):
