@@ -11,8 +11,9 @@ user-invocable: false
 
 1. **`Read`** `prompts/guardrails.md` → `intake.md`
 2. 向量可选：`prompts/configure_embedding.md` + `tools/config.py`
-3. 答复：`prompts/respond_office_action.md` + `tools/search_cases.py --pdf`
-4. 用户确认采纳：`assets/opinion_statement.md` → `tools/emit_opinion_docx.py`
-5. 入库（用户同意后）：`tools/ingest_case.py`；手册：`tools/ingest_playbook.py`
+3. **扫描件 PDF 处理**：审查意见通知书若为扫描件（`pdf_text.py` 提取为空或字符 < 80），须先使用 MCP OCR 工具（`document-processing` MCP 或 MinerU MCP）提取文本，再将提取后的 .txt 传给 `search_cases.py --pdf`。不要跳过 OCR 直接使用空文本。
+4. 答复：`prompts/respond_office_action.md` + `tools/search_cases.py --pdf`
+5. 用户确认采纳：`assets/opinion_statement.md` → `tools/emit_opinion_docx.py`
+6. 入库（用户同意后）：`tools/ingest_case.py`；手册：`tools/ingest_playbook.py`
 
 依赖：`pip install -r tools/requirements-oa.txt`。

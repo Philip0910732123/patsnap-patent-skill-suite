@@ -50,8 +50,11 @@ def extract_pdf_text(path: Path, *, max_pages: int = 0) -> dict[str, Any]:
         chars = len(re.sub(r"\s+", "", text))
         if chars < 80 and n > 0:
             warnings.append(
-                "extracted_text_too_short: 可能是扫描件/图片 PDF。"
-                "当前仅支持文本层抽取；请提供可复制文字的 PDF，或先用 OCR 工具转成带字 PDF。"
+                "extracted_text_too_short: 可能是扫描件/图片 PDF（PyMuPDF 未检测到文本层）。"
+                "建议使用 MCP OCR 工具提取文本：\n"
+                "  - document-processing MCP（documents_parsing 工具）\n"
+                "  - MinerU MCP（mcp_mineru__parse_documents 工具，须传 output_dir 避免截断）\n"
+                "提取后将 .txt 路径传给 --input 参数继续后续流程。"
             )
         if max_pages > 0 and n > max_pages:
             warnings.append(f"truncated_to_pages={max_pages}_of_{n}")
