@@ -204,7 +204,7 @@ python skills/patent-oa/tools/search_cases.py --query "创造性 区别特征" -
 # python skills/patent-oa/tools/emit_opinion_docx.py -i outputs/oa/案/意见陈述_时间戳.md
 ```
 
-Obsidian 案例落在 `{vault}/oa/cases/history/`（另有 `pending/`、`drafts/`、`playbooks/`）。与主依赖**独立**。细则见 `skills/patent-oa/prompts/`、`skills/patent-oa/tools/README.md`、[skills/patent-oa/SKILL.md](skills/patent-oa/SKILL.md)。
+Obsidian 案例落在 `{vault}/oa/cases/history/`（另有 `pending/`、`drafts/`）。与主依赖**独立**。细则见 `skills/patent-oa/prompts/`、`skills/patent-oa/tools/README.md`、[skills/patent-oa/SKILL.md](skills/patent-oa/SKILL.md)。
 
 ## 强烈建议：专利通俗解读 + Obsidian 库
 

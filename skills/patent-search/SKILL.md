@@ -6,10 +6,15 @@ user-invocable: false
 
 # 著录检索
 
+<<<<<<< HEAD
 通用专利著录检索，不是「个人清单技能」。个人公开清单只是一种用法。
+=======
+## 用途
+>>>>>>> upstream/main
 
-**先 `Read` `prompts/patent_search.md`。** 用户给单图或权要时再 `Read` `prompts/derived_query.md`。
+公布站高级查询（发明人 / 申请人 / 分类号 / 名称 / 摘要等）。个人公开清单只是一种用法。单图或权要可先抽关键字再查。对照表派工时可按特征精排，另出覆盖旁路，**不改**列表报告。
 
+<<<<<<< HEAD
 ## 检索渠道（双通道）
 
 ### A. 智慧芽 MCP（优先）
@@ -77,6 +82,19 @@ tool_invoke(tool="mcp_patent-status__legal_data", arguments={
 ```
 
 ### CNIPA 模式（降级）
+=======
+## 何时用
+
+用户要按著录字段查公布公告、个人公开清单、以图或权要生成检索式，或 `/patent-search`。对照表派工或用户点名「按特征精排」时再走 `covers_rank.md`。
+
+## 输入
+
+至少一项：发明人、申请人、分类号、名称、摘要/简要说明、申请号或公开号。单图必须 `--type design|utility_model|invention`，不能 `all`；用户没说类型时看图推断并加 `--type-inferred`。权要按文本选类型，可用 `all`。
+
+## 步骤
+
+**先 `Read` `prompts/patent_search.md`。** 用户给单图或权要时再 `Read` `prompts/derived_query.md`。对照表派工或用户点名「按特征精排」时再 `Read` `prompts/covers_rank.md`。翻页口径以该文件「默认少翻页 / 完整性门禁」为准。
+>>>>>>> upstream/main
 
 ```bash
 python skills/patent-search/tools/cnipa_search.py --inventor "姓名" --applicant "单位"
@@ -85,10 +103,11 @@ python skills/patent-search/tools/cnipa_search.py --abstract "折叠 and 杯盖"
 python skills/patent-search/tools/cnipa_search.py --inventor "姓名" --complete
 ```
 
-单图必须 `--type design|utility_model|invention`，不能 `all`。用户没说类型时看图推断并加 `--type-inferred`。权要按文本选类型，可用 `all`。
+单独拷走本包时：`python tools/cnipa_search.py …`。改版式只动 `tools/emit_search_report.py`。机读前缀：`EPUB_SEARCH_MD:` / `EPUB_SEARCH_JSON:` / `EPUB_SEARCH_NOTE:` / `EPUB_SEARCH_INCOMPLETE:`。对话里给出 Markdown 路径。
 
-单独拷走本包时：`python tools/cnipa_search.py …`。
+## 护栏
 
+<<<<<<< HEAD
 ## 结果落盘
 
 结果默认落到 **`outputs/patent-search/SEARCH-YYYYMMDD-HHMMSS.md`**（gitignore）。
@@ -117,3 +136,11 @@ MCP 模式下，智慧芽著录数据天然带发明人/申请人字段，同名
 
 **不做**：Google Patents / 学术检索与跨库去重（但可通过 `patsnap-search.patsnap_search` 做语义检索，覆盖专利+文献）、PSS 登录站、按附图视觉相似检索。单图/权要只生成检索式。
 **禁止**被交底 Step 5 当查新引擎调用（交底查新走 `patsnap-search.patsnap_search` 语义检索）。
+=======
+- 结果不得冒充交底查新。
+- 本包只做公布站高级查询。单图或权要只生成公布站布尔式。覆盖精排是列表之后的可选旁路。
+
+## 产出物
+
+`outputs/patent-search/SEARCH-YYYYMMDD-HHMMSS.md`（及对应 json）。精排旁路另出 `SEARCH-*.covers.md` / `.covers.json`，不改列表报告。本包**不设**「交付后请确认」。
+>>>>>>> upstream/main

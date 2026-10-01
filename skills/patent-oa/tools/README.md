@@ -40,21 +40,15 @@ python skills/patent-oa/tools/rebuild_vectors.py --confirm
 python skills/patent-oa/tools/search_cases.py --pdf notice.pdf --defect inventiveness --top-k 5
 python skills/patent-oa/tools/ingest_case.py -i path/to/case.md
 python skills/patent-oa/tools/refresh_vault.py   # 索引 + Bases + 关联 Canvas
-python skills/patent-oa/tools/refresh_vault.py --inventory  # 只读：历史案/手册数量（答复末尾引导用）
-python skills/patent-oa/tools/emit_opinion_docx.py -i outputs/oa/案/意见陈述_时间戳.md
+python skills/patent-oa/tools/refresh_vault.py --inventory  # 只读：历史案数量（答复末尾引导用）
+python skills/patent-oa/tools/emit_opinion_docx.py -i outputs/oa/案/会话/意见陈述_时间戳.md
+python skills/patent-oa/tools/emit_chart.py --json outputs/oa/案/会话/_payload.json --into outputs/oa/案/会话
 ```
 
-意见陈述 Word：**仅用户确认采纳某份草稿后**，按 `assets/opinion_statement.md` 写递交 md，再跑本包 `emit_opinion_docx.py`（`md_to_docx.py` 为交底包副本，禁止调用交底路径）。不做官方电子表单、不排版权要替换页。普通括号包 LaTeX 时 stderr 打印 `LATEX_DELIM:`，**不阻断**出 Word（陈述书可能引用权要原文括号）。
+意见陈述 Word：**仅用户确认采纳某份草稿后**，按 `assets/opinion_statement.md` 写递交 md，再跑本包 `emit_opinion_docx.py`（`md_to_docx.py` 是本包副本）。不做官方电子表单、不排版权要替换页。普通括号包 LaTeX 时 stderr 打印 `LATEX_DELIM:`，**不阻断**出 Word（陈述书可能引用权要原文括号）。
 
-Obsidian 结构：`oa/cases/history/` · `oa/pending/` · `oa/drafts/` · `oa/playbooks/` + `_OA索引` / `_OA看板.base` / `_OA关联.canvas`。
+对照表 xlsx：`emit_chart.py` / `highlights.py` / `xlsx_minimal.py` / `write_intake.py` 是 `skills/patent-chart/tools/` 的副本。改对照包时覆盖本包同名文件。测试 `tests/test_chart_tools_sync.py` 会比对。
 
-实务书蒸馏（先预读，只要本地路径）：
-
-```bash
-python skills/patent-oa/tools/ingest_playbook.py peek --path book.pdf
-python skills/patent-oa/tools/ingest_playbook.py ensure-skill
-python skills/patent-oa/tools/ingest_playbook.py ingest --from-skill-dir DISTILLED --source-path book.pdf --slug slug
-python skills/patent-oa/tools/ingest_playbook.py list
-```
+Obsidian 结构：`oa/cases/history/` · `oa/pending/` · `oa/drafts/` + `_OA索引` / `_OA看板.base` / `_OA关联.canvas`。
 
 见 `skills/patent-oa/prompts/`、[docs/vault.md](../docs/vault.md) 与 [SKILL.md](../SKILL.md)。

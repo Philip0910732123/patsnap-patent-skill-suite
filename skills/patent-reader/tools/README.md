@@ -23,6 +23,7 @@ skills/patent-reader/tools/
 | `analyze/` | `build_context_anchor.py` | 技术落地线索包 |
 | | `build_claim_mermaid.py` | 权利要求 mermaid |
 | | `validate_claim_tree.py` | 权项树校验/规范化 |
+| | `claim_features.py` / `validate_claim_features.py` | 独权特征行（对照表左列） |
 | | `validate_public_clues.py` | 附录 B 线索校验 + 置信度筛选 |
 | | `lint_patent_note.py` | 笔记结构校验 |
 | `vault/` | `obsidian.py` | 兼容入口：再导出下列拆分模块的公开符号 |

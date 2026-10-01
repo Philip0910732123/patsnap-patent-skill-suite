@@ -15,5 +15,5 @@
 | `matrix.schema.yaml` | 技术功效矩阵 | `outputs/{案}/fence/matrix.yaml` |
 | `family_plan.schema.yaml` | 保护型 1+N 族树 | `outputs/{案}/fence/family.yaml`；说明稿 `专利布局.md` 由模型按 `prompts/fence/plan.md` 直写，「立项校验」章按 `prompts/fence/score.md` 回写 |
 
-填写指令：`prompts/fill_structure_schema.md`、`fill_appearance_schema.md`（填表末步写出 **`figure_plan.yaml`**，含跨图核对与 `relates_to`）；线稿合同 **`prompts/image_gen.md`**；外观视图口径 **`references/design_view_cnipa.md`**（审查指南 4.2；交底打分与申请核查同一清单）；外观见 **`prompts/design_lineart_assist.md`**；实用新型见 **`prompts/structure_lineart_assist.md`** + **`structure_lineart_compose.md`**。  
+填写指令：`prompts/fill_structure_schema.md`、`fill_appearance_schema.md`（填表末步写出 **`figure_plan.yaml`**，含跨图核对与 `relates_to`）；线稿合同 **`prompts/image_gen.md`**；外观视图口径 **`references/design_view_cnipa.md`**（审查指南 4.2；交底打分与申请核查同一清单）；外观检查 **`tools/check_design_views.py`**；外观见 **`prompts/design_lineart_assist.md`**；实用新型见 **`prompts/structure_lineart_assist.md`** + **`structure_lineart_compose.md`**。  
 多轮改材料或主题时须同步重评 `figure_plan`（含 `relates_to`；见该合同「多轮同步」）。StructureSchema 可选 `relations[].seen_in` 标注连接可见于哪些 `fig`。

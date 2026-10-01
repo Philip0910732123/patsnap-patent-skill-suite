@@ -4,9 +4,12 @@
 
 默认链路（见 references/patent_pdf_sources.yaml）：
   1) 用户已给本地 PDF / --url → 直接用
-  2) Google Patents 详情页解析 CDN（zh → en → 无语言后缀）
-  3) 已知示例 CDN（references 里 known_cdn_examples，仅兜底）
-  4) 失败时提示：用国知局 epub 核验公开号，或请用户自备 PDF
+  2) Google Patents 详情页 zh / en / 无后缀三页并行，读到 citation_pdf_url 即断开 → CDN 下载
+  3) 已知示例 CDN（仅兜底）
+  4) 仍失败：请用户提供 PDF
+
+不走国知局公布站：其单行本接口服务端常超时，见源表 unstable_or_skip。
+外观设计（CN…S）Google 多无 PDF，改用 fetch_design_views.py。
 
 用法：
   python skills/patent-reader/tools/extract/fetch_patent_pdf.py --pub CN119961390A \\
@@ -29,9 +32,12 @@ if str(_PR_ROOT) not in _sys.path:
 
 import argparse
 import json
+import queue
 import re
 import ssl
 import sys
+import threading
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -39,7 +45,16 @@ from pathlib import Path
 from patent_type import resolve_reader_patent_type
 
 UA = "Mozilla/5.0 (compatible; patent-disclosure-skill/1.0)"
-DEFAULT_TIMEOUT = 90
+# 总时限（秒）：解析详情页 + 下载 PDF。连不上 Google 时尽快失败，不干等。
+DEFAULT_TIMEOUT = 45
+# 单个详情页的 socket 超时。citation_pdf_url 在页首约 2KB 处，正常 1 秒内读到。
+PAGE_TIMEOUT = 8
+# PDF 单次 socket 读写超时（不是总时长；总时长受 DEFAULT_TIMEOUT 约束）
+PDF_SOCKET_TIMEOUT = 20
+PDF_ATTEMPTS = 2
+_PAGE_CHUNK = 8192
+_PDF_CHUNK = 64 * 1024
+_SSL_CTX = ssl.create_default_context()
 
 _SOURCES_YAML = _PKG / "references" / "patent_pdf_sources.yaml"
 
@@ -126,25 +141,56 @@ def extract_pdf_urls_from_html(html: str, pub: str) -> list[str]:
     return prefer + rest
 
 
-def http_get(
+def _open(url: str, *, timeout: float):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    return urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX)
+
+
+def read_page_pdf_urls(
+    page: str,
+    pub: str,
+    *,
+    timeout: float = PAGE_TIMEOUT,
+    save_to: Path | None = None,
+) -> tuple[list[str], int]:
+    """读 Google 详情页，返回 (pdf_urls, 已读字节)。不存 HTML 时读到 citation_pdf_url 就断开。"""
+    buf = bytearray()
+    with _open(page, timeout=timeout) as resp:
+        while True:
+            chunk = resp.read(_PAGE_CHUNK)
+            if not chunk:
+                break
+            buf += chunk
+            if (
+                save_to is None
+                and b"citation_pdf_url" in buf
+                and CITATION_PDF_RE.search(buf.decode("utf-8", errors="ignore"))
+            ):
+                break
+    html = buf.decode("utf-8", errors="replace")
+    if save_to is not None:
+        save_to.parent.mkdir(parents=True, exist_ok=True)
+        save_to.write_text(html, encoding="utf-8")
+    return extract_pdf_urls_from_html(html, pub), len(buf)
+
+
+def download_pdf_bytes(
     url: str,
     *,
-    timeout: int = DEFAULT_TIMEOUT,
-    binary: bool = False,
-) -> bytes | str:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    ctx = ssl.create_default_context()
-    with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-        data = resp.read()
-    if binary:
-        return data
-    # Google 页多为 utf-8；失败则 replace
-    return data.decode("utf-8", errors="replace")
-
-
-def download_pdf_bytes(url: str, *, timeout: int = 120) -> bytes:
-    data = http_get(url, timeout=timeout, binary=True)
-    assert isinstance(data, bytes)
+    timeout: float = PDF_SOCKET_TIMEOUT,
+    deadline: float | None = None,
+) -> bytes:
+    """``deadline`` 为 ``time.monotonic()`` 时刻；超过即中断，避免慢速下载拖满 socket 超时。"""
+    parts: list[bytes] = []
+    with _open(url, timeout=timeout) as resp:
+        while True:
+            chunk = resp.read(_PDF_CHUNK)
+            if not chunk:
+                break
+            parts.append(chunk)
+            if deadline is not None and time.monotonic() > deadline:
+                raise TimeoutError(f"PDF 下载超出总时限: {url}")
+    data = b"".join(parts)
     if not data.startswith(b"%PDF"):
         raise ValueError(f"not a PDF (magic={data[:8]!r}): {url}")
     if len(data) < 5000:
@@ -152,42 +198,107 @@ def download_pdf_bytes(url: str, *, timeout: int = 120) -> bytes:
     return data
 
 
+def _download_with_retry(
+    urls: list[str],
+    *,
+    deadline: float,
+    log: list[str],
+) -> tuple[str, bytes]:
+    """按候选顺序下载；网络抖动重试一次，404 / 非 PDF 不重试直接换下一个。"""
+    last: Exception | None = None
+    for url in urls:
+        for attempt in range(1, PDF_ATTEMPTS + 1):
+            remaining = deadline - time.monotonic()
+            if remaining <= 1:
+                raise TimeoutError(
+                    f"PDF 下载超出总时限。attempts={' | '.join(log)}"
+                ) from last
+            try:
+                data = download_pdf_bytes(
+                    url,
+                    timeout=min(PDF_SOCKET_TIMEOUT, remaining),
+                    deadline=deadline,
+                )
+                log.append(f"ok_pdf:{url}:try{attempt}:bytes={len(data)}")
+                return url, data
+            except urllib.error.HTTPError as e:
+                last = e
+                log.append(f"fail_pdf:{url}:HTTP{e.code}")
+                if e.code == 404:
+                    break
+            except ValueError as e:
+                last = e
+                log.append(f"fail_pdf:{url}:{e}")
+                break
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                last = e
+                log.append(f"fail_pdf:{url}:try{attempt}:{type(e).__name__}:{e}")
+    raise FileNotFoundError(
+        f"PDF 直链均下载失败。attempts={' | '.join(log)}"
+    ) from last
+
+
 def resolve_pdf_url(
     pub: str,
     *,
-    timeout: int = DEFAULT_TIMEOUT,
+    timeout: float = DEFAULT_TIMEOUT,
     save_html_dir: Path | None = None,
     known_cdn: dict[str, str] | None = None,
 ) -> tuple[str, str, list[str]]:
-    """返回 (pdf_url, source_id, attempts_log)。"""
+    """返回 (pdf_url, source_id, attempts_log)。三个详情页并行，先拿到直链的赢。"""
     pub_u = normalize_pub(pub)
     log: list[str] = []
     known = known_cdn if known_cdn is not None else load_known_cdn_examples()
+    pages = google_patent_page_urls(pub_u)
+    page_timeout = max(1.0, min(float(timeout), PAGE_TIMEOUT))
+    results: queue.Queue = queue.Queue()
 
-    for i, page in enumerate(google_patent_page_urls(pub_u)):
+    def probe(i: int, page: str) -> None:
+        save_to = save_html_dir / f"_gp_{i}.html" if save_html_dir is not None else None
         try:
-            html = http_get(page, timeout=timeout)
-            assert isinstance(html, str)
-            log.append(f"ok_page:{page}:len={len(html)}")
-            if save_html_dir is not None:
-                save_html_dir.mkdir(parents=True, exist_ok=True)
-                (save_html_dir / f"_gp_{i}.html").write_text(html, encoding="utf-8")
-            urls = extract_pdf_urls_from_html(html, pub_u)
-            if urls:
-                log.append(f"cdn_from_page:{urls[0]}")
-                return urls[0], "google_patents_page", log
-            log.append(f"no_cdn_in_page:{page}")
+            urls, n = read_page_pdf_urls(page, pub_u, timeout=page_timeout, save_to=save_to)
+            line = f"ok_page:{page}:read={n}" if urls else f"no_cdn_in_page:{page}"
+            results.put((urls, line, None))
+        except urllib.error.HTTPError as e:
+            results.put(([], f"fail_page:{page}:HTTP{e.code}", e.code))
         except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
-            log.append(f"fail_page:{page}:{type(e).__name__}:{e}")
+            results.put(([], f"fail_page:{page}:{type(e).__name__}:{e}", None))
+
+    # daemon 线程：赢家返回后，慢的那页不拖住进程退出
+    for i, page in enumerate(pages):
+        threading.Thread(target=probe, args=(i, page), daemon=True).start()
+
+    deadline = time.monotonic() + page_timeout + 2
+    codes: list[int | None] = []
+    no_cdn = 0
+    for _ in pages:
+        try:
+            urls, line, code = results.get(timeout=max(0.1, deadline - time.monotonic()))
+        except queue.Empty:
+            log.append(f"page_timeout:{page_timeout:.0f}s")
+            break
+        log.append(line)
+        if urls:
+            log.append(f"cdn_from_page:{urls[0]}")
+            return urls[0], "google_patents_page", log
+        if line.startswith("no_cdn_in_page:"):
+            no_cdn += 1
+        else:
+            codes.append(code)
 
     if pub_u in known:
         log.append(f"known_cdn_example:{known[pub_u]}")
         return known[pub_u], "known_cdn_examples", log
 
-    raise FileNotFoundError(
-        "未能解析 PDF 直链。可：1) 检查网络后重试；2) 用本包 crawl/cnipa_epub_crawler.py 核验公开号；"
-        "3) 用户自备 PDF 后直接 extract。attempts=" + " | ".join(log)
-    )
+    if no_cdn == 0 and 404 in codes:
+        reason = (
+            f"Google Patents 未收录 {pub_u}（新公开的专利通常 1–3 周后才上 Google）。"
+        )
+    elif no_cdn:
+        reason = f"Google Patents 有 {pub_u} 详情页但没有 PDF（外观设计多如此，改用 fetch_design_views.py）。"
+    else:
+        reason = "连不上 Google Patents（详情页失败或超时），请检查网络后重试。"
+    raise FileNotFoundError(reason + "请用户提供 PDF。attempts=" + " | ".join(log))
 
 
 def fetch_patent_pdf(
@@ -195,11 +306,13 @@ def fetch_patent_pdf(
     outdir: Path,
     *,
     url: str = "",
-    timeout: int = DEFAULT_TIMEOUT,
+    timeout: float = DEFAULT_TIMEOUT,
     save_html: bool = False,
     force: bool = False,
 ) -> dict:
-    """下载到 {outdir}/source/{PUB}.pdf，返回状态 dict。"""
+    """下载到 {outdir}/source/{PUB}.pdf，返回状态 dict。``timeout`` 是总时限（秒）。"""
+    started = time.monotonic()
+    deadline = started + max(5.0, float(timeout))
     pub_u = normalize_pub(pub)
     if not pub_u:
         raise ValueError("empty pub number")
@@ -244,26 +357,36 @@ def fetch_patent_pdf(
     pdf_url = (url or "").strip()
     source_id = "direct_url"
     attempts: list[str] = []
+    candidates: list[str] = []
 
     if not pdf_url:
-        pdf_url, source_id, attempts = resolve_pdf_url(
+        pdf_url, source_id, g_attempts = resolve_pdf_url(
             pub_u,
             timeout=timeout,
             save_html_dir=(outdir if save_html else None),
         )
+        attempts.extend(g_attempts)
+        candidates.append(pdf_url)
+        known = load_known_cdn_examples().get(pub_u)
+        if known and known != pdf_url:
+            candidates.append(known)
     else:
         attempts.append(f"direct_url:{pdf_url}")
+        candidates.append(pdf_url)
 
-    data = download_pdf_bytes(pdf_url, timeout=max(timeout, 120))
+    got_url, data = _download_with_retry(candidates, deadline=deadline, log=attempts)
+    if got_url != pdf_url:
+        source_id = "known_cdn_examples"
     dest.write_bytes(data)
 
     status.update(
         {
             "ok": True,
             "source_id": source_id,
-            "pdf_url": pdf_url,
+            "pdf_url": got_url,
             "bytes": len(data),
             "attempts": attempts,
+            "elapsed_sec": round(time.monotonic() - started, 2),
         }
     )
     return status
@@ -283,7 +406,12 @@ def main(argv: list[str] | None = None) -> int:
         help="RUN 目录；PDF 写入 {outdir}/source/{PUB}.pdf",
     )
     ap.add_argument("--url", default="", help="已知 PDF 直链时跳过页面解析")
-    ap.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
+    ap.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help=f"总时限秒数（解析 + 下载），默认 {DEFAULT_TIMEOUT}",
+    )
     ap.add_argument(
         "--save-html",
         action="store_true",
@@ -321,8 +449,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"FAIL {err['error']}", file=sys.stderr)
         print(
-            "HINT: 无稳定国内免费全文镜像；可用本包 crawl/cnipa_epub_crawler.py 核验后自备 PDF，"
-            "或稍后重试 Google Patents / CDN。源表见 references/patent_pdf_sources.yaml",
+            "HINT: Google Patents 未取到全文 PDF。请用户提供 PDF；"
+            "外观设计改用 fetch_design_views.py。源表见 references/patent_pdf_sources.yaml",
             file=sys.stderr,
         )
         return 1
@@ -334,7 +462,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(
         f"OK pdf={status['pdf_path']} bytes={status['bytes']} "
-        f"source={status['source_id']}"
+        f"source={status['source_id']} elapsed={status.get('elapsed_sec', 0)}s"
     )
     if status.get("patent_type"):
         print(

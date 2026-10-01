@@ -36,7 +36,7 @@
 ## 7.3 写作硬性要求
 
 - 只写**看得见的造型/图案/色彩**，不写内部电路、卡扣受力、工艺步骤。  
-- 视图与 `claimed_faces` 对齐；故意不交的面用 `omitted_views` 在简要说明写清（相同/对称/无要点），**不要**默认补六视。要点落面缺源图才写入 `uncertain`。正文「见图 N」**只引用** `figure_plan` 中 `use_in_disclosure: true` 的条目（按 `fig`），勿临场扫全目录。  
+- 视图与 `claimed_faces` 对齐；故意不交的面用 `omitted_views` 在简要说明写清（相同/对称/无要点），**不要**默认补六视。要点落面缺源图才写入 `uncertain`。正文「见图 N」**只引用** `figure_plan` 中 `use_in_disclosure: true` 的条目（按 `fig`），勿临场扫全目录。实线/虚线以 `line_scope` 为准，各视同一部位线型相同；检查清单不写入交底正文。  
 - **多视联读**：立体/正交/局部之间用 `relates_to`（`same_state` / `alternate_view` / `detail_of`）；正文说明须与之一致，跨图造型特征勿互相矛盾。  
 - **入文同时嵌干净实拍与合格线稿**（`photo_clean` + `kind: lineart`）。实拍不得标成线稿；CAD 禁止入文。交底外观图按审查指南 4.2 与电子申请常见图幅出图；申请文件用同一清单核查，不改原图。  
 - **线稿（必做）**：成文前已按 `references/design_view_cnipa.md` + `prompts/image_gen.md` + `prompts/design_lineart_assist.md` 选用或生成；未过 4.2 须重画。不问用户。  
@@ -57,7 +57,8 @@
 
 - [ ] 文头为外观设计  
 - [ ] 设计要点可追溯 AppearanceSchema  
-- [ ] 已写 `product_form` / `claimed_faces`（官方全称）；正投影按落面而非默认六视；`omitted_views` 已入简要说明（无则 `[]`）  
+- [ ] 已写 `product_form` / `claimed_faces`（官方全称）；正投影按落面而非默认六视；`omitted_views` 已入简要说明（无则 `[]`）；`line_scope` 已锁定  
+- [ ] 已跑 `check_design_views.py`，`视图检查清单.md` 已落盘；清单不写入交底正文  
 - [ ] 视图仅来自 `figure_plan` 且「见图 N」与 `fig` 对齐；干净实拍与线稿均已入文；图题在图外正下方、未烧进像素  
 - [ ] 入文多视/局部的 `relates_to` 已写且正文联读一致（可无场景参考图）  
 - [ ] 线稿经 image_gen + design_lineart_gate，且过 `design_view_cnipa.md`；CAD 未入文；透视棚拍未当 `photo_clean`；实拍未标成 lineart  
