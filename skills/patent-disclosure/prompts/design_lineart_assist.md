@@ -42,7 +42,7 @@ python skills/patent-disclosure/tools/image_gen.py --case-dir "outputs/{案件�
    - 途经 2 且无参考图：`source_paths` 可空  
    - `source_figs` / `relates_hint` 抄自 figure_plan  
    - `view_name` / 图题用官方全称（主视图、后视图、左视图、右视图、俯视图、仰视图、立体图）  
-   - `gen_prompt`：黑白外观轮廓线稿、正投影（立体图除外）、各视比例一致、无彩色无棚拍阴影、不发明未见结构、保留可见轮廓与开口/倒角；**禁止**尺寸线、中心线、定位线、件号引出线、工程剖面阴影、图内图号/视图名；画布对准不超过 150mm×220mm、72–300 DPI；有参考则「以参考图为准」
+   - `gen_prompt`：黑白外观轮廓线稿、正投影（立体图除外）、各视比例一致、无彩色无棚拍阴影、不发明未见结构、保留可见轮廓与开口/倒角；实线只画 `line_scope.claimed`，虚线只画 `line_scope.unclaimed`（可空则全实线），各视同一部位线型相同；**禁止**尺寸线、中心线、定位线、件号引出线、工程剖面阴影、图内图号/视图名；画布对准不超过 150mm×220mm、72–300 DPI；有参考则「以参考图为准」
 
 ### 2. 门禁
 
@@ -109,5 +109,6 @@ python skills/patent-disclosure/tools/design_lineart_gate.py \
 - [ ] 否则已图生图，或已「先描述再文生图」/ 文生图  
 - [ ] 干净实拍与线稿均为 `use_in_disclosure: true`；md 与 docx 都已嵌入  
 - [ ] 多视参照了 `relates_to` / `relates_hint`；线稿视与 `claimed_faces` 一致，未为省略面出图  
+- [ ] `line_scope` 已锁定；各视实线/虚线同一口径；已跑 `check_design_views.py`  
 - [ ] 线稿无尺寸线 / 中心线 / 定位线 / 件号引出线 / 图内图号；图题为官方视图名  
 - [ ] 已按 `design_view_cnipa.md` 复核；未过清单的已有线稿已重画，未走 `existing_lineart`  

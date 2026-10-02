@@ -21,7 +21,7 @@ relations:
 spatial: []            # 上下/内外/同轴/阵列等短句
 function_of_structure: []  # 该结构解决什么问题（非纯方法步骤）
 delta_hypothesis: []   # 相对常见结构可能新在哪
-uncertain: []          # 看不清 / 说明书未写明
+uncertain: []          # 看不清 / 原文未写明。禁止再写入 parts，禁止写进权要/说明书确定句
 not_utility_model_signals: []  # 若更像方法/外观，列于此供分流
 ```
 

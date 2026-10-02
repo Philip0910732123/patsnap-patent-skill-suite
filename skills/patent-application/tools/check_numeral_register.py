@@ -23,6 +23,7 @@ if str(_HERE) not in sys.path:
 from stdio_utf8 import ensure_utf8_stdio
 
 MARK = re.compile(r"[（(](\d+)[）)]")
+NEAR_MARK = re.compile(r"([\u4e00-\u9fffA-Za-z0-9]{1,16})[（(](\d+)[）)]")
 
 
 @dataclass
@@ -77,6 +78,47 @@ def _mentions_part(text: str, part_id: str, name: str) -> bool:
     if name and name in text:
         return True
     return False
+
+
+def _occurrence_findings(text: str, parts: list[dict[str, Any]], *, where: str) -> list[Finding]:
+    """每一次「名称（号）」：串号、未登记号、同名不同号。"""
+    findings: list[Finding] = []
+    register_ids = {_part_id(item.get("id")) for item in parts if _part_id(item.get("id"))}
+    register_names = {
+        _part_id(item.get("id")): str(item.get("name") or "").strip()
+        for item in parts
+        if _part_id(item.get("id"))
+    }
+    by_id: dict[str, set[str]] = {}
+    by_name: dict[str, set[str]] = {}
+    for match in NEAR_MARK.finditer(text or ""):
+        name, pid = match.group(1), match.group(2)
+        by_id.setdefault(pid, set()).add(name)
+        by_name.setdefault(name, set()).add(pid)
+    for pid, names in sorted(by_id.items()):
+        if pid not in register_ids:
+            findings.append(
+                Finding("ERROR", "MARK_UNREGISTERED", f"{where}出现未登记件号（{pid}），附近用语：{' / '.join(sorted(names))}。")
+            )
+        if len(names) > 1:
+            findings.append(
+                Finding("ERROR", "CROSS_NAME", f"{where}件号（{pid}）串号，同一号对应了：{' / '.join(sorted(names))}。")
+            )
+        expected = register_names.get(pid) or ""
+        if expected and expected not in names and pid in register_ids:
+            findings.append(
+                Finding(
+                    "WARNING",
+                    "OCCURRENCE_NAME",
+                    f"{where}件号（{pid}）登记名为「{expected}」，正文出现为：{' / '.join(sorted(names))}。",
+                )
+            )
+    for name, ids in sorted(by_name.items()):
+        if len(ids) > 1:
+            findings.append(
+                Finding("ERROR", "NAME_SPLIT", f"{where}「{name}」用了多个件号：{'、'.join(f'（{i}）' for i in sorted(ids))}。")
+            )
+    return findings
 
 
 def check_register(
@@ -233,6 +275,11 @@ def check_register(
                         f"件号 {pid} 未填 specification，且说明书未见该件。",
                     )
                 )
+
+        findings.extend(_occurrence_findings(spec_text, parts, where="说明书"))
+
+    if claims_text is not None and parts:
+        findings.extend(_occurrence_findings(claims_text, parts, where="权要"))
 
     if not parts and not figures:
         findings.append(Finding("ERROR", "EMPTY_REGISTER", "登记表 parts 与 figures 都为空。"))

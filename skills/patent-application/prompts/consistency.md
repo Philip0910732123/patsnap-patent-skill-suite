@@ -24,7 +24,7 @@ python skills/patent-application/tools/check_support.py \
 
 看 `APPLICATION_SUPPORT:`。ERROR 先改权要/说明书/附图 YAML 再交付；WARNING 进问题清单。
 
-脚本核：独权「步骤N」与流程图标签；框图模块名是否出现在说明书与系统权要；附图说明是否点到每张 `图N`；摘要字数与宣传语（`references/promo_terms.yaml`）。语义是否写够仍靠上表，脚本通过不等于充分公开。
+脚本核：独权「步骤N」与流程图标签；框图模块名是否出现在说明书与系统权要；附图说明是否点到每张 `图N`；`figures/figure_plan.yaml` 图型是否已出图；件号登记表每一次「名称（号）」是否串号/未登记；摘要字数与宣传语（`references/promo_terms.yaml`）。语义是否写够仍靠上表，脚本通过不等于充分公开。核对报告：`标号核对.md`。
 
 ## 公式三处同义
 

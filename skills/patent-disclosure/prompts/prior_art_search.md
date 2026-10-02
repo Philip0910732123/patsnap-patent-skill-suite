@@ -75,9 +75,59 @@ CNIPA 模式的两轮查新（关键词召回 → IPC/LOC 分类号收口）逻�
 
 在 A 和 B 结果不足时启用：
 
+<<<<<<< HEAD
 1. **中文文献与学术**：Google 学术搜索，用中文关键词、技术方案核心术语，可组合 2–3 组查询
 2. **专利公开文献（补充）**：Google Patents，按类型过滤（发明 `type=PATENT` + `country:CN`；外观 `type=DESIGN`）
 3. 每条使用稳定著录页 URL
+=======
+   - `--probe` 的 stdout JSON：`playwright=false` 时**本会话最多一次** `pip install playwright`（或 `pip install -r requirements.txt`），再 `--probe`。
+   - `ok=true`（已有 Chrome / Edge / 自带 Chromium）→ **直接检索**。
+   - `ok=false` 且已有 Playwright 包、本机无 Chrome/Edge 时，才允许**一次** `python -m playwright install chromium`，然后再检索。
+   - 探测或启动仍失败 → 进入 **B**（WebSearch）。
+
+   ```bash
+   python skills/patent-disclosure/tools/crawl/cnipa_epub_search.py --type invention 词甲 词乙 词丙
+   ```
+
+   - **合并**：一次调用若 stderr 含 **`EPUB_MERGE:`**，以 **stdout** 上**唯一一行** **`EPUB_HITS_JSON:`** 为准（脚本已按 `pub_number` 去重）。仅当拆成多批调用时，Agent 再按 **`pub_number`**（无则 **`link`**）合并。
+   - **`cnipa_epub_search.py`** 按空白拆段、**同一浏览器**内一段一查并去重（**stderr** 可出现 **`EPUB_MERGE:`**）。
+   - 成功时 **stdout 仅一行** **`EPUB_HITS_JSON:`** + JSON 数组（UTF-8，含中文 `abstract`、**`ipc_codes` / `loc_codes`**）；**`EPUB_PROGRESS:`** / **`EPUB_MERGE:`** / **`EPUB_NOTE:`** / **`EPUB_HINT:`** / **`EPUB_CLASS_HINT:`** / **`BROWSER:`** / **`CNIPA_EPUB_ERROR:`** 等在 **stderr**（多为 ASCII 机读标记）。`EPUB_PROGRESS:` 标明当前卡在 `goto` / `gate` / `submit` 哪一段，短超时也不应静默。
+   - **stderr ≠ 失败**：退出码 **0** 且 stdout 有 `EPUB_HITS_JSON:` 即为成功。PowerShell 把 stderr 显示为 `NativeCommandError` 或中文乱码时，仍以该行 JSON 为准。脚本已 UTF-8 输出。
+   - 解析命中时请以 **stdout 该行 JSON 为准**。
+   - 将 JSON 中**可核验**的公开号、标题、**国知局站点内详情链接**写入查新笔记与 1.1（见下 **`abstract` 必用**）。
+   - **三种失败，分开处理**：
+     1. **导航失败**（退出码非 0，stderr 有 `CNIPA_EPUB_ERROR:` `stage=goto|gate|submit`）：看 `hint=`。`skip_epub`（通常是第一轮首页打不开）→ 才进入 **B**。`keep_round1`（通常是第二轮高级查询）→ **保留第一轮 JSON**，按 3b.4 回补，不进入 §B。
+     2. **真 0 条**（退出码 0，`EPUB_HITS_JSON: []`）：换词 / 减分类号 / 回补；不是超时。
+     3. **无 Playwright 且安装失败**：进入 **B**。探测或启动仍失败 → **B**。
+   - **降级条件**（满足才进入 **B**）：第一轮 `hint=skip_epub`、无 Playwright 且安装失败、第一轮 stdout **无** `EPUB_HITS_JSON:`、第一轮 **`EPUB_HITS_JSON` 为空数组**且无法按分类号回补、或条目经人工核对明显与主题无关。**第二轮超时/导航失败单独不触发 §B。** **仅有 stderr / 乱码 / NativeCommandError 而退出码为 0 且 JSON 非空 → 不降级。** 等待上限见 `tools/crawl/cnipa_epub_wait.yaml`。
+
+6. **`abstract` 字段（国知局条目，规定必用）**
+
+   若 **`EPUB_HITS_JSON`** 中某项含非空的 **`abstract`**（解析自公布站结果页摘要），对**该条专利**须同时遵守：
+
+   - **必用**：查新笔记、交底书 **1.1** 中对该专利的**技术方案概括、应用场景与局限性分析**，**必须先基于对该 `abstract` 的完整阅读与理解**后再撰写；**禁止**仅凭标题、公开号或 URL **臆造**方案要点或与摘要矛盾的表述。
+   - **充分理解**：在写入 1.1 或查新笔记前，Agent 须在**推理过程内**明确：摘要所涉**技术领域、解决什么问题、核心手段/模块、主要效果或流程**；若摘要与标题存在差异，**以摘要为准**概括该技术。
+   - **正文呈现**：交底书 1.1 中**不得**大段逐字粘贴官方摘要（避免抄袭与超字数）；应**消化后**用**自己的话**压缩为「方案概括 + 应用 + 缺点/局限」；查新笔记可保留稍长的摘录供自用核对，但须标注来源于公布站摘要。
+   - **缺失时**：若某条 JSON **无** `abstract` 或为空（旧版页面 / 表格布局未解析到等），须在查新笔记中注明「该条无摘要字段」，并改用**详情页**或 **Google Patents** 等可核验来源补全理解后再写 1.1，**不得**留空理由含糊带过。
+
+7. **链接与著录**：`EPUB_HITS_JSON` 命中项在 1.1 的「来源链接」**直接使用 JSON 的 `link` 字段**（国知局公布站 `epub.cnipa.gov.cn`）；**禁止编造**。**不得**用 Google Patents URL **替换**已有 `link`。Google Patents 仅用于 **§B** 降级检索所得条目，或 JSON **无** `link`、仅知 `pub_number` 时的备选取址（如 `https://patents.google.com/patent/CN…/en`）。
+
+### B. Google 学术与 Google Patents（**降级 / 补充**）
+
+在 **A 不可用或结果不足**时启用。类型过滤能力见 **`references/patent_type_search.yaml`**：
+
+1. **中文文献与学术**：[Google 学术搜索](https://scholar.google.com)（`scholar.google.com`）。
+   - **不支持**按发明 / 实用新型 / 外观设计过滤；类型案件仍用技术关键词检索论文等 NPL。
+   - 用**中文关键词**、技术方案核心术语、应用场景；可组合 2–3 组查询。
+   - 通过 **WebSearch** 或浏览器检索；优先可打开且与标题/作者匹配的链接。
+2. **专利公开文献（补充）**：[Google Patents](https://patents.google.com/)。
+   - **发明**：界面/参数倾向 **Patent（`type=PATENT`）** + `country:CN`；公开号常见 `CN…A` / `CN…B`。第二轮分类号可拼 `CPC=B01J20/low`（见 3b.5，外网不通则跳过）。
+   - **实用新型**：**无独立 Utility Model 类型**；用 Patent 域 + 关键词「实用新型」或公开号 `…U` 收窄，**类型过滤仍以国知局 A 渠道为准**。
+   - **外观**：勾选 / 使用 **Design（`type=DESIGN`）** + `country:CN`；公开号常见 `…S`。可把 LOC 号（如 `26-05`）当作补充词。
+   - 每条使用**稳定著录页 URL**；查询串可参考 `tools/patent_type.google_patents_websearch_query`。
+3. **其它来源**：英文文献、非中国专利等可继续用 Google Patents、出版社页面、DOI、arXiv 等 + WebSearch。
+4. **关键词构造**：技术方案核心术语、应用场景与方法名称，可组合 2–3 组查询。
+>>>>>>> upstream/main
 
 ## 分析要求
 

@@ -20,6 +20,8 @@ if str(_HERE) not in sys.path:
 
 from stdio_utf8 import ensure_utf8_stdio
 from lexicon import promo_pattern
+from check_numeral_register import check_register, _load_mapping as _load_register
+from plan_figures import validate_plan as validate_figure_plan
 
 PROMO = promo_pattern()
 STEP_LABEL = re.compile(
@@ -209,6 +211,65 @@ def audit_dir(root: Path) -> list[Finding]:
     else:
         findings.append(Finding("WARNING", "NO_ABSTRACT", "未找到说明书摘要.md。"))
 
+    app_plan_path = root / "figures" / "figure_plan.yaml"
+    if not app_plan_path.is_file():
+        app_plan_path = root / "figures" / "figure_plan.json"
+    if app_plan_path.is_file():
+        app_plan = _load_plan(app_plan_path)
+        findings.extend(
+            Finding(item.level, item.code, item.message) for item in validate_figure_plan(app_plan)
+        )
+        planned_figs = {
+            int(item["fig"]): item
+            for item in (app_plan.get("figures") or [])
+            if isinstance(item, dict) and item.get("fig") is not None
+        }
+        inv_figs = set(fig_nums)
+        for fig, item in planned_figs.items():
+            kind = str(item.get("kind") or "")
+            if str(item.get("source") or "") == "pending":
+                continue
+            has_file = (root / "figures" / f"图{fig}.png").is_file() or (
+                root / "figures" / f"图{fig}.svg"
+            ).is_file()
+            if kind in {"flowchart", "block_diagram", "source_image"} and fig not in inv_figs and not has_file:
+                findings.append(
+                    Finding("ERROR", "FIG_PLAN_MISSING", f"figure_plan 图{fig}（{kind}）未写入 invention_figures 也未出图。")
+                )
+            if kind == "lineart" and not has_file:
+                findings.append(
+                    Finding("WARNING", "FIG_PLAN_MISSING", f"figure_plan 图{fig} 线稿尚未升格出图。")
+                )
+
+    register_path = None
+    for name in ("件号登记表.yaml", "件号登记表.yml", "件号登记表.json"):
+        cand = root / name
+        if cand.is_file():
+            register_path = cand
+            break
+    if register_path is not None:
+        schema_path = None
+        for name in ("structure_schema.yaml", "structure_schema.yml", "structure_schema.json"):
+            cand = root / name
+            if cand.is_file():
+                schema_path = cand
+                break
+        fig_plan_path = app_plan_path if app_plan_path.is_file() else None
+        if fig_plan_path is None:
+            for name in ("figure_plan.yaml", "figure_plan.json"):
+                cand = root / name
+                if cand.is_file():
+                    fig_plan_path = cand
+                    break
+        register = _load_register(register_path)
+        schema = _load_register(schema_path) if schema_path else None
+        fig_plan = _load_register(fig_plan_path) if fig_plan_path else None
+        if fig_plan is not None:
+            for item in fig_plan.get("figures") or []:
+                if isinstance(item, dict) and "use_in_disclosure" not in item:
+                    item["use_in_disclosure"] = True
+        findings.extend(check_register(register, schema=schema, figure_plan=fig_plan, claims_text=claims_text, spec_text=spec_text))
+
     return findings
 
 
@@ -232,6 +293,36 @@ def main() -> int:
     findings = audit_dir(root)
     errors, warnings = summarize(findings)
     ok = errors == 0
+    numeral_codes = {
+        "DUP_ID",
+        "EMPTY_ID",
+        "EMPTY_NAME",
+        "SCHEMA_MISSING",
+        "REGISTER_EXTRA",
+        "NAME_MISMATCH",
+        "FIG_UNREGISTERED",
+        "FIG_UNKNOWN",
+        "COVERS_MISMATCH",
+        "CLAIM_MARK_MISSING",
+        "CLAIM_UNLISTED",
+        "SPEC_MARK_MISSING",
+        "SPEC_UNFLAGGED",
+        "SPEC_UNCHECKED",
+        "EMPTY_REGISTER",
+        "CROSS_NAME",
+        "MARK_UNREGISTERED",
+        "NAME_SPLIT",
+        "OCCURRENCE_NAME",
+    }
+    numeral = [item for item in findings if item.code in numeral_codes]
+    report = root / "标号核对.md"
+    lines = ["# 标号核对", "", "件号 ↔ 部件名 ↔ 权要/说明书每一次「名称（号）」。机器通过不等于可提交。", ""]
+    if not numeral:
+        lines.append("未见结构性串号、未登记号或跨图名称冲突。")
+    else:
+        for item in numeral:
+            lines.append(f"- **{item.level}** `{item.code}` {item.message}")
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"APPLICATION_SUPPORT: ok={1 if ok else 0} errors={errors} warnings={warnings}")
     if args.json:
         print(json.dumps([asdict(item) for item in findings], ensure_ascii=False, indent=2))

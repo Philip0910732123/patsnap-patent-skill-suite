@@ -2,6 +2,8 @@
 
 发明 / 实用新型：交底 mermaid / 彩色 PNG **只当结构来源**。申请附图须黑白线框。图号写在说明书「附图说明」和插图下方的正文，**不要**画进 PNG/SVG。PNG 按 SVG 内容包围盒截取，不要整页 A4 留白。不要用交底包 `structure_lineart_compose`。外观见文末「外观」节，不走黑白升格。
 
+先按 `figure_plan.md` 写出产出目录 `figures/figure_plan.yaml`。下面出图的 `kind` 必须落在该清单里；不要另画权要没点到的剖视/爆炸。剖视、爆炸、多状态有交底线稿才升格，否则保持 `pending` 并记问题清单。
+
 ## 发明
 
 | 种类 | `kind` | 标号 |
@@ -44,7 +46,7 @@ python skills/patent-application/tools/compose_application_figure.py \
 
 ## 步骤（发明）
 
-1. 写 `figures/invention_figures.yaml`（合同见 `references/schemas/invention_figures.schema.yaml`）。
+1. 按 `figures/figure_plan.yaml` 写 `figures/invention_figures.yaml`（合同见 `references/schemas/invention_figures.schema.yaml`）。只为清单中的 `flowchart` / `block_diagram` / `source_image` 生成 YAML。
 2. 运行：
 
 ```bash

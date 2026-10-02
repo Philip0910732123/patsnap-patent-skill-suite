@@ -14,7 +14,7 @@
 <tr><td nowrap width="1%"><strong>专利类型</strong></td><td>发明 / 实用新型出权利要求书、说明书、摘要和黑白附图；外观走外观申请文件</td></tr>
 <tr><td nowrap width="1%"><strong>交底材料</strong></td><td>须指定交底产出目录；缺交底书 / schema / 线稿则终止，引导先补交底</td></tr>
 <tr><td nowrap width="1%"><strong>权利要求</strong></td><td>从属按层展开并与实施例对照</td></tr>
-<tr><td nowrap width="1%"><strong>申请文件成稿</strong></td><td>四件套（Markdown + Word + 黑白图）</td></tr>
+<tr><td nowrap width="1%"><strong>附图图型</strong></td><td>按权要选定剖视/爆炸/流程/框图/多状态，写入产出 <code>figures/figure_plan.yaml</code></td></tr>
 <tr><td nowrap width="1%"><strong>问题清单</strong></td><td>内容争议写入问题清单，不阻塞主文件；交付末尾提醒</td></tr>
 <tr><td nowrap width="1%"><strong>迭代</strong></td><td>已有产出上改稿则另存新时间戳目录</td></tr>
 </tbody>
