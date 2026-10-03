@@ -1034,6 +1034,29 @@ def main(argv: list[str] | None = None) -> int:
                 encoding="utf-8",
             )
 
+    feat_path = None
+    if args.workdir:
+        cand = args.workdir.resolve() / "claim_features.json"
+        if cand.is_file():
+            feat_path = cand
+    if feat_path is not None:
+        try:
+            from analyze.claim_features import load_claim_features, upsert_feature_sections
+        except ImportError:
+            from tools.patent_reader.analyze.claim_features import (
+                load_claim_features,
+                upsert_feature_sections,
+            )
+
+        feat_data = load_claim_features(feat_path)
+        if feat_data and feat_data.get("features"):
+            content = upsert_feature_sections(content, feat_data)
+            side_feat = base / "claim_features.json"
+            side_feat.write_text(
+                json.dumps(feat_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
     structure_schema, appearance_schema = resolve_schema_files(
         args.workdir.resolve() if args.workdir else None,
         structure_path=args.structure_schema,

@@ -114,11 +114,17 @@ def load_description_paragraphs(workdir: Path | None) -> dict[str, str]:
     return split_cn_description_paragraphs(description_text_from_raw_sections(raw))
 
 
+def epub_patent_url(pub: str) -> str:
+    p = (pub or "").strip()
+    return f"http://epub.cnipa.gov.cn/patent/{p}" if p else ""
+
+
 def write_description_paragraphs_json(
     out_path: Path, paragraphs: dict[str, str], *, pub: str = ""
 ) -> Path:
     payload = {
         "pub_number": pub,
+        "source_url": epub_patent_url(pub),
         "count": len(paragraphs),
         "paragraphs": {k: paragraphs[k] for k in sorted(paragraphs)},
     }

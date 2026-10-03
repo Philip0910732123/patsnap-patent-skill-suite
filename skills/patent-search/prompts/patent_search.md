@@ -118,6 +118,7 @@ CNIPA 模式的分页、完整性门禁、同名归属逻辑见原版 `config.ya
   - `inventor_query_and_applicant` → "发明人查询与申请人共同匹配"
   - `inventor_query_only_unverified_namesake` → "仅姓名查询命中，同名归属待核实"
 
+<<<<<<< HEAD
 ## 不做
 
 - Google Patents 学术检索与跨库去重（但可通过 `patsnap-search.patsnap_search` 做语义检索，覆盖专利+文献）
@@ -125,3 +126,10 @@ CNIPA 模式的分页、完整性门禁、同名归属逻辑见原版 `config.ya
 - 按附图视觉相似检索
 - 单图/权要只生成检索式
 - **禁止**被交底 Step 5 当查新引擎调用（交底查新走 `patsnap-search.patsnap_search` 语义检索）
+=======
+机读前缀：`EPUB_SEARCH_MD:` / `EPUB_SEARCH_JSON:`（stdout）、`EPUB_SEARCH_NOTE:` / `EPUB_SEARCH_INCOMPLETE:`（stderr）。面向用户给 Markdown 路径和中文摘要，不要只倒 JSON 键。
+
+## 按特征精排（可选旁路）
+
+用户点名或对照表派工时，`Read` `prompts/covers_rank.md`。用命中摘要对 Fk 打 `covers_feature`，经 `emit_covers_report.py` 另写 `SEARCH-*.covers.md` / `.covers.json`。**禁止**改写本次 `SEARCH-*.md` 列表。无点名不要生成 covers。
+>>>>>>> upstream/main

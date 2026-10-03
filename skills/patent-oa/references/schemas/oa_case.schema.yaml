@@ -10,8 +10,6 @@
 
 无库时根目录改为 `{Documents}/patent-disclosure-skill/oa/`。  
 
-经验手册：`{vault}/oa/playbooks/{slug}/`（`oa_playbook.schema.yaml`），**不进**案例向量。  
-
 库根固定生成：`_OA索引.md`、`_OA看板.base`、`_OA关联.canvas`（入库 / `refresh_vault.py` 刷新）。  
 
 向量库默认：`{Documents}/patent-disclosure-skill/oa/data/oa_vectors.sqlite`。  

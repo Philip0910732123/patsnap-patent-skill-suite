@@ -2,6 +2,7 @@
 """说明书段落锚点与引用改写。"""
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,7 @@ from vault.desc_paragraphs import (
     split_cn_description_paragraphs,
     upgrade_legacy_citation_wikilinks,
     wikilink_description_citations,
+    write_description_paragraphs_json,
 )
 
 
@@ -113,6 +115,19 @@ class DescParagraphsTest(unittest.TestCase):
                 "[[CN1_说明书段落#^r0002-0004|说明书 0002–0004]]",
                 new_content,
             )
+
+    def test_paragraphs_json_has_source_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "description_paragraphs.json"
+            write_description_paragraphs_json(
+                path, {"0002": "一段正文"}, pub="CN219812345U"
+            )
+            data = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                data["source_url"],
+                "http://epub.cnipa.gov.cn/patent/CN219812345U",
+            )
+            self.assertEqual(data["paragraphs"]["0002"], "一段正文")
 
 
 if __name__ == "__main__":

@@ -22,7 +22,6 @@ if str(_HERE) not in sys.path:
 from config import load_config
 from vault_layout import (
     DEFAULT_NUDGE_MIN_HISTORY,
-    DEFAULT_NUDGE_MIN_PLAYBOOKS,
     oa_inventory,
     refresh_oa_vault,
 )
@@ -57,19 +56,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--inventory",
         action="store_true",
-        help="只读统计历史案/手册数量（不写索引）",
+        help="只读统计历史案数量（不写索引）",
     )
     p.add_argument(
         "--min-history",
         type=int,
         default=DEFAULT_NUDGE_MIN_HISTORY,
         help="历史案低于此数则 nudge（默认 3）",
-    )
-    p.add_argument(
-        "--min-playbooks",
-        type=int,
-        default=DEFAULT_NUDGE_MIN_PLAYBOOKS,
-        help="经验手册低于此数则 nudge（默认 3）",
     )
     args = p.parse_args(argv)
 
@@ -80,7 +73,6 @@ def main(argv: list[str] | None = None) -> int:
             cfg=cfg,
             vault=vault,
             min_history=args.min_history,
-            min_playbooks=args.min_playbooks,
         )
     else:
         result = refresh_oa_vault(cfg=cfg, vault=vault, papers_dir=papers)

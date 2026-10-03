@@ -8,7 +8,7 @@ Markdown 预览常把 ``\\(`` 显示成 ``(``，写稿时不要据此删反斜�
 包住的公式不扫（公式内 ``\\bigl(`` / ``\\max(`` / ``\\left(`` 等合法嵌套不算违规）。
 
 本文件是交底包 ``skills/patent-disclosure/tools/latex_delimiters.py`` 的**包内副本**。
-申请文件禁止跨包 import 交底工具；说明书出 Word 前只用本路径。
+说明书出 Word 前只用本路径。
 
 用法：
   python skills/patent-application/tools/latex_delimiters.py -i 说明书.md

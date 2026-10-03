@@ -3,7 +3,6 @@
 
 技术路线：``latex2mathml`` 转 MathML，再映射为 ``m:oMath`` / ``m:oMathPara``，
 供 ``python-docx`` 挂到段落。本文件是交底包 ``skills/patent-disclosure/tools/math_to_omml.py`` 的**包内副本**。
-申请文件禁止跨包 import 交底工具。
 
 复杂宏失败时由调用方回退 PNG/原文。
 
