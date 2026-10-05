@@ -111,7 +111,7 @@ def build_web_search_queries(
             "query": f"{assignee or pub} 专利 {kw}",
             "priority": 4,
             "tool": "cnipa_epub_crawler.py",
-            "note": "本包 crawl/cnipa_epub_crawler.py 核验或短词检索；勿调用交底查新或多页著录检索",
+            "note": "用本包 crawl/cnipa_epub_crawler.py 做核验或短词检索",
         }
     )
     return queries[:6]

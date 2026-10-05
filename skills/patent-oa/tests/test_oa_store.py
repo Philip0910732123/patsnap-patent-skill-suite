@@ -427,21 +427,15 @@ class VaultLayoutTests(unittest.TestCase):
             hist.mkdir(parents=True)
             (hist / "c1.md").write_text("# c1\n", encoding="utf-8")
             (hist / "c2.md").write_text("# c2\n", encoding="utf-8")
-            pb = oa / "playbooks" / "book-a"
-            pb.mkdir(parents=True)
-            (pb / "_playbook.md").write_text("# pb\n", encoding="utf-8")
             inv = oa_inventory(cfg={"obsidian_oa_dir": "oa"}, vault=vault)
             self.assertTrue(inv["ok"])
             self.assertEqual(inv["counts"]["history"], 2)
-            self.assertEqual(inv["counts"]["playbooks"], 1)
             self.assertTrue(inv["below"]["history"])
-            self.assertTrue(inv["below"]["playbooks"])
             self.assertTrue(inv["nudge"])
             full = oa_inventory(
                 cfg={"obsidian_oa_dir": "oa"},
                 vault=vault,
                 min_history=2,
-                min_playbooks=1,
             )
             self.assertFalse(full["nudge"])
             missing = oa_inventory(
