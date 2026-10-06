@@ -3,7 +3,7 @@
 将 Markdown 转为 Word（.docx）。
 
 本文件是交底包 ``skills/patent-disclosure/tools/md_to_docx.py`` 的**包内副本**。
-申请文件禁止跨包调用交底工具；出权利要求书 / 说明书 Word 只用本路径。
+出权利要求书 / 说明书 Word 只用本路径。
 
 用法：
   python skills/patent-application/tools/md_to_docx.py -i 说明书.md -o 说明书.docx
