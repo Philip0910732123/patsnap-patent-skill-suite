@@ -296,6 +296,15 @@ def run_check(case_dir: Path, *, enabled: bool) -> dict[str, Any]:
     structure = _load_data(struct_path)
     brief = _load_data(brief_path)
     errors = validate_brief(brief, case_dir, structure=structure)
+    plan = _load_data(plan_path) if plan_path else {}
+    try:
+        from check_source_parts import check_source_parts
+
+        for item in check_source_parts(case_dir, structure=structure, plan=plan, disclosure_text=None):
+            if item.level == "ERROR":
+                errors.append(f"{item.code}: {item.message}")
+    except Exception:
+        pass
     result["errors"] = errors
     result["brief_path"] = str(brief_path)
     result["structure_path"] = str(struct_path)
