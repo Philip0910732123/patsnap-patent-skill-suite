@@ -19,4 +19,4 @@ python skills/patent-application/tools/check_numeral_register.py \
 python skills/patent-application/tools/check_support.py --dir <产出>
 ```
 
-`APPLICATION_NUMERALS: ok=0` 先改表或正文。警告进问题清单。
+`APPLICATION_NUMERALS: ok=0` 先改表或正文。`check_support` 会并入串号 / 未登记号 / 同名不同号，并写出 `标号核对.md`。警告进问题清单。
