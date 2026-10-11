@@ -53,7 +53,7 @@ if str(_TOOLS) not in sys.path:
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
-from browser import launch_chromium
+from browser import browser_user_agent, launch_chromium
 from patent_type import TYPE_ALL, epub_checkbox_states
 from cnipa_epub_wait import EpubNavError, load_wait_config, progress
 
@@ -89,10 +89,6 @@ _RESULT_PAGE_READY_JS = """(titles) => {
     }
     return false;
 }"""
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
 
 
 def _cfg() -> dict:
@@ -171,12 +167,14 @@ def wait_for_epub_home_ready(page: Page, *, max_wait_sec: float | None = None) -
         return
     _goto(page, EPUB_BASE, advanced=False)
     _wait_selector(page, "#searchStr", advanced=False, max_wait_sec=max_wait_sec)
+    _settle_after_load(page)
 
 
 def open_epub_advanced_search(page: Page) -> None:
     """Open CNIPA's fielded search after the browser session passed the home gate."""
     _goto(page, EPUB_ADVANCED, advanced=True)
     _wait_selector(page, "#advForm #e72", advanced=True)
+    _settle_after_load(page)
 
 
 def _safe_page_content(page: Page, *, max_attempts: int = 10) -> str:
@@ -278,6 +276,136 @@ def wait_for_epub_advanced_ready(page: Page, *, max_wait_sec: float | None = Non
         return
     _goto(page, EPUB_ADVANCED, advanced=True)
     _wait_selector(page, "#e51", advanced=True, max_wait_sec=max_wait_sec)
+    _settle_after_load(page)
+
+
+#: 公布模式每页条数。检索接口固定回 3 条，只能在结果页用站点自己的「每页N条」下拉框切换：
+#: 防护脚本会给页面发出的 PageQuery XHR 加签名，脚本自己发的 fetch/XHR 没有签名会被挂住。
+EPUB_PAGE_SIZE = 10
+_PAGE_SIZE_RESPONSE_TIMEOUT_MS = 20_000
+_PAGE_SIZE_RENDER_TIMEOUT_MS = 10_000
+_RESULT_PAGER_JS = """() => {
+    const m = document.documentElement.innerHTML.match(/total_item:\\s*(\\d+)/);
+    return {
+        items: document.querySelectorAll('#result div.item').length,
+        total: m ? Number.parseInt(m[1], 10) : null,
+        size: (document.querySelector('#pageSize') || {}).value || '',
+    };
+}"""
+
+#: 点击后等查询请求发出的上限（毫秒）。
+_SUBMIT_SENT_TIMEOUT_MS = 20_000
+_PAGE_LOADED_TIMEOUT_MS = 15_000
+_PAGE_LOADED_JS = "() => document.readyState === 'complete'"
+#: 放行后检索框一出现就提交会被回 400：页面加载完成后再静置这么久（毫秒）才提交。
+_PAGE_SETTLE_MS = 2_000
+
+
+def _is_query_request(request) -> bool:
+    try:
+        return (
+            request.resource_type == "document"
+            and request.method == "POST"
+            and "/Dxb/" in request.url
+        )
+    except Error:
+        return False
+
+
+def _is_query_document(response) -> bool:
+    try:
+        return _is_query_request(response.request)
+    except Error:
+        return False
+
+
+def _wait_page_loaded(page: Page) -> None:
+    try:
+        page.wait_for_function(_PAGE_LOADED_JS, timeout=_PAGE_LOADED_TIMEOUT_MS)
+    except (PlaywrightTimeoutError, Error):
+        pass
+
+
+def _settle_after_load(page: Page) -> None:
+    _wait_page_loaded(page)
+    page.wait_for_timeout(_PAGE_SETTLE_MS)
+
+
+def _submit_and_check(page: Page, click, *, advanced: bool) -> None:
+    """先确认查询已发出，再看查询文档状态码：非 200 立即报 submit 失败，不等满结果页超时。"""
+    timeout_ms = int(_cfg()["submit_timeout_ms"])
+    if advanced:
+        _wait_page_loaded(page)
+    for attempt in (1, 2):
+        sent = False
+        try:
+            with page.expect_response(_is_query_document, timeout=timeout_ms) as info:
+                with page.expect_request(_is_query_request, timeout=_SUBMIT_SENT_TIMEOUT_MS):
+                    click()
+                sent = True
+            break
+        except (PlaywrightTimeoutError, Error) as exc:
+            if sent or attempt == 2:
+                raise EpubNavError(
+                    "submit",
+                    hint=_nav_hint(advanced=advanced),
+                    message="提交后公布站未返回结果页" if sent else "点击提交后未发出查询",
+                    timeout_s=timeout_ms / 1000.0,
+                    url=_page_url(page),
+                ) from exc
+            progress("stage=submit_not_sent reclick=1")
+            _settle_after_load(page)
+    status = int(info.value.status)
+    if status != 200:
+        kind = "后端出错或超时" if status >= 500 else "防护拒绝提交"
+        raise EpubNavError(
+            "submit",
+            hint=_nav_hint(advanced=advanced),
+            message=f"公布站{kind}（HTTP {status}）",
+            url=_page_url(page),
+        )
+    _wait_result_page_ready(page, advanced=advanced)
+
+
+def apply_result_page_size(page: Page, *, advanced: bool) -> None:
+    """在结果页把「每页3条」切成每页 ``EPUB_PAGE_SIZE`` 条，与人工选下拉框同一条请求。"""
+    if not page.query_selector("#sizeSelect"):
+        return
+    info = page.evaluate(_RESULT_PAGER_JS)
+    if not isinstance(info, dict) or str(info.get("size")) == str(EPUB_PAGE_SIZE):
+        return
+    before = int(info.get("items") or 0)
+    total = info.get("total")
+    if isinstance(total, int) and total <= before:
+        return
+    want = min(EPUB_PAGE_SIZE, total) if isinstance(total, int) else EPUB_PAGE_SIZE
+    _settle_after_load(page)
+    try:
+        with page.expect_response(
+            lambda r: "/Dxb/PageQuery" in r.url, timeout=_PAGE_SIZE_RESPONSE_TIMEOUT_MS
+        ) as resp:
+            page.select_option("#sizeSelect", str(EPUB_PAGE_SIZE))
+        status = int(resp.value.status)
+        if status != 200:
+            raise EpubNavError(
+                "page_size",
+                hint=_nav_hint(advanced=advanced),
+                message=f"切换每页{EPUB_PAGE_SIZE}条被拒（HTTP {status}）",
+                url=_page_url(page),
+            )
+        page.wait_for_function(
+            "(want) => document.querySelectorAll('#result div.item').length >= want",
+            arg=want,
+            timeout=_PAGE_SIZE_RENDER_TIMEOUT_MS,
+        )
+    except (PlaywrightTimeoutError, Error) as exc:
+        raise EpubNavError(
+            "page_size",
+            hint=_nav_hint(advanced=advanced),
+            message=f"切换每页{EPUB_PAGE_SIZE}条未返回结果",
+            url=_page_url(page),
+        ) from exc
+    progress(f"stage=page_size items={before}->{want}")
 
 
 def submit_advanced_search(
@@ -298,8 +426,7 @@ def submit_advanced_search(
     btn = form.query_selector("button")
     if btn is None:
         raise RuntimeError("高级查询未找到提交按钮")
-    btn.click()
-    _wait_result_page_ready(page, advanced=True)
+    _submit_and_check(page, lambda: btn.click(no_wait_after=True), advanced=True)
 
 
 def submit_index_search(
@@ -310,28 +437,20 @@ def submit_index_search(
 ) -> None:
     apply_epub_type_filter(page, patent_type)
     page.fill("#searchStr", keyword)
-    timeout_ms = int(_cfg()["submit_timeout_ms"])
-    try:
-        with page.expect_navigation(timeout=timeout_ms, wait_until="commit"):
-            form = page.query_selector("#indexForm")
-            if form:
-                form.evaluate("el => el.submit()")
-            else:
-                page.evaluate(
-                    """() => {
-                    const f = document.getElementById('indexForm');
-                    if (f) f.submit();
-                }"""
-                )
-    except (PlaywrightTimeoutError, Error) as exc:
-        raise EpubNavError(
-            "submit",
-            hint=_nav_hint(advanced=False),
-            message="首页提交后导航超时",
-            timeout_s=timeout_ms / 1000.0,
-            url=_page_url(page),
-        ) from exc
-    _wait_result_page_ready(page, advanced=False)
+
+    def _click() -> None:
+        form = page.query_selector("#indexForm")
+        if form:
+            form.evaluate("el => el.submit()")
+        else:
+            page.evaluate(
+                """() => {
+                const f = document.getElementById('indexForm');
+                if (f) f.submit();
+            }"""
+            )
+
+    _submit_and_check(page, _click, advanced=False)
 
 
 def _launch_browser(p: Playwright) -> Browser:
@@ -340,22 +459,13 @@ def _launch_browser(p: Playwright) -> Browser:
 
 
 def _new_context(browser: Browser) -> BrowserContext:
-    """桌面 Chrome UA + zh-CN + 固定视口。
+    """本机浏览器自己的 UA（只去掉 ``HeadlessChrome``）+ zh-CN + 固定视口。
 
-    **UA 必须覆盖**：默认无头 UA 含 ``HeadlessChrome``，实测会被站点防护直接拒绝
-    （首页 DOM 仅 39 字节、``#searchStr`` 永不出现）。详见 ``cnipa_epub_crawler`` 文件头。
+    带 ``HeadlessChrome`` 时首页不放行；写死旧版本号时表单提交回 400。
+    详见 ``cnipa_epub_crawler`` 文件头第 3 点。
     """
-    if sys.platform == "darwin":
-        platform_token = "Macintosh; Intel Mac OS X 10_15_7"
-    elif sys.platform.startswith("linux"):
-        platform_token = "X11; Linux x86_64"
-    else:
-        platform_token = "Windows NT 10.0; Win64; x64"
-    user_agent = DEFAULT_USER_AGENT.format(version=browser.version).replace(
-        "Windows NT 10.0; Win64; x64", platform_token
-    )
     return browser.new_context(
-        user_agent=user_agent,
+        user_agent=browser_user_agent(browser),
         locale="zh-CN",
         viewport={"width": 1280, "height": 900},
     )

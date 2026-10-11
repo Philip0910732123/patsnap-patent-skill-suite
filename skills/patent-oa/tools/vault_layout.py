@@ -11,7 +11,6 @@
 
 入库与 refresh 会：迁移旧平铺文件、写索引/看板/关联 Canvas、
 对比文件有解读笔记时链到 Research/Patents。
-经验手册在 oa/playbooks/，刷新索引时列出，但不进入案例检索/向量。
 """
 from __future__ import annotations
 
@@ -154,7 +153,6 @@ def ensure_oa_dirs(oa_root: Path) -> list[str]:
         oa_root / "cases" / "history",
         oa_root / "pending",
         oa_root / "drafts",
-        oa_root / "playbooks",
     ):
         if not sub.is_dir():
             sub.mkdir(parents=True, exist_ok=True)
@@ -452,32 +450,6 @@ def load_case_records(oa_root: Path) -> list[dict[str, Any]]:
     return records
 
 
-def list_playbook_index_paths(oa_root: Path) -> list[Path]:
-    root = oa_root / "playbooks"
-    if not root.is_dir():
-        return []
-    return sorted(p for p in root.glob("*/_playbook.md") if p.is_file())
-
-
-def _playbook_section(oa_root: Path, vault: Path | None) -> str:
-    paths = list_playbook_index_paths(oa_root)
-    if not paths:
-        return "_（空）_\n"
-    lines: list[str] = []
-    for p in paths:
-        try:
-            meta, _ = parse_case_markdown(p.read_text(encoding="utf-8"))
-        except OSError:
-            meta = {}
-        slug = str(meta.get("slug") or p.parent.name)
-        title = str(meta.get("title") or slug).replace("|", "/")
-        w = _wiki_path(p, vault, oa_root)
-        flag = "强制入库" if meta.get("force") else ("已核" if meta.get("verified") else "未核")
-        lines.append(f"- [[{w}|{title}]]")
-        lines.append(f"  - `{slug}` · {flag} · 不进案例向量")
-    return "\n".join(lines) + "\n"
-
-
 def write_oa_index(oa_root: Path, vault: Path | None = None) -> Path:
     records = load_case_records(oa_root)
     by_status: dict[str, list[dict]] = {
@@ -508,7 +480,6 @@ def write_oa_index(oa_root: Path, vault: Path | None = None) -> Path:
             )
         return "\n".join(lines) + "\n"
 
-    playbook_n = len(list_playbook_index_paths(oa_root))
     body = (
         "---\n"
         "tags:\n"
@@ -521,21 +492,17 @@ def write_oa_index(oa_root: Path, vault: Path | None = None) -> Path:
         f"## 统计\n\n"
         f"- 历史案：{len(by_status.get(STATUS_HISTORY) or [])}\n"
         f"- 待答复：{len(by_status.get(STATUS_PENDING) or [])}\n"
-        f"- 草稿：{len(by_status.get(STATUS_DRAFT) or [])}\n"
-        f"- 经验手册：{playbook_n}\n\n"
+        f"- 草稿：{len(by_status.get(STATUS_DRAFT) or [])}\n\n"
         "## 历史案（可检索）\n\n"
         f"{section_list(by_status.get(STATUS_HISTORY) or [])}\n"
         "## 待答复\n\n"
         f"{section_list(by_status.get(STATUS_PENDING) or [])}\n"
         "## 草稿\n\n"
         f"{section_list(by_status.get(STATUS_DRAFT) or [])}\n"
-        "## 经验手册（不进案例检索）\n\n"
-        f"{_playbook_section(oa_root, vault)}\n"
         "## 目录约定\n\n"
         "- `oa/cases/history/`：已脱敏历史案（进向量/标签检索）\n"
         "- `oa/pending/`：待答复通知书\n"
         "- `oa/drafts/`：入库前人审草稿\n"
-        "- `oa/playbooks/`：实务书蒸馏手册；写答复时可 Read，**不**进 `search_cases`\n"
     )
     path = oa_root / "_OA索引.md"
     path.write_text(body, encoding="utf-8")
@@ -779,7 +746,6 @@ def refresh_case_files(
 
 
 DEFAULT_NUDGE_MIN_HISTORY = 3
-DEFAULT_NUDGE_MIN_PLAYBOOKS = 3
 
 
 def oa_inventory(
@@ -787,7 +753,6 @@ def oa_inventory(
     cfg: dict | None = None,
     vault: str | Path | None = None,
     min_history: int = DEFAULT_NUDGE_MIN_HISTORY,
-    min_playbooks: int = DEFAULT_NUDGE_MIN_PLAYBOOKS,
 ) -> dict[str, Any]:
     """只读统计 oa 库厚度，不写索引、不建目录。"""
     cfg = cfg or {}
@@ -799,9 +764,7 @@ def oa_inventory(
         STATUS_DRAFT: [],
     }
     history_n = len(notes.get(STATUS_HISTORY) or [])
-    playbook_n = len(list_playbook_index_paths(oa_root)) if oa_root.is_dir() else 0
     below_history = history_n < max(0, int(min_history))
-    below_playbooks = playbook_n < max(0, int(min_playbooks))
     return {
         "ok": True,
         "oa_root": str(oa_root),
@@ -810,17 +773,14 @@ def oa_inventory(
             STATUS_HISTORY: history_n,
             STATUS_PENDING: len(notes.get(STATUS_PENDING) or []),
             STATUS_DRAFT: len(notes.get(STATUS_DRAFT) or []),
-            "playbooks": playbook_n,
         },
         "threshold": {
             "history": int(min_history),
-            "playbooks": int(min_playbooks),
         },
         "below": {
             "history": below_history,
-            "playbooks": below_playbooks,
         },
-        "nudge": below_history or below_playbooks,
+        "nudge": below_history,
     }
 
 
@@ -851,6 +811,5 @@ def refresh_oa_vault(
         "actions": actions,
         "counts": {
             **{st: len(paths) for st, paths in list_notes_by_status(oa_root).items()},
-            "playbooks": len(list_playbook_index_paths(oa_root)),
         },
     }
