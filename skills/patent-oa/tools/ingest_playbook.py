@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""审查答复 · 经验手册：预读 / 安装 book-to-skill / 转写入 Obs。
+"""审查答复 · 经验手册：预读 / book-to-skill 引导 / 转写入 Obs。
 
   python skills/patent-oa/tools/ingest_playbook.py peek --path "D:/books/oa.pdf"
   python skills/patent-oa/tools/ingest_playbook.py ensure-skill
@@ -19,7 +19,6 @@ ROOT = _HERE.parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
-from book_to_skill_setup import ensure_book_to_skill
 from config import load_config
 from playbook import ingest_distilled_skill, list_playbook_records, peek_source, reject_if_url
 from vault_layout import refresh_oa_vault, resolve_oa_root
@@ -60,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     peek.add_argument("--max-chars", type=int, default=12000)
     peek.add_argument("--no-text", action="store_true", help="JSON 中省略 text")
 
-    ens = sub.add_parser("ensure-skill", help="探测或自动安装 book-to-skill")
+    ens = sub.add_parser("ensure-skill", help="检查 book-to-skill 是否已安装（不自动安装）")
     ens.add_argument("--no-install", action="store_true")
 
     ing = sub.add_parser("ingest", help="把蒸馏输出转写到 oa/playbooks（不进案例向量）")
@@ -88,13 +87,18 @@ def main(argv: list[str] | None = None) -> int:
             print("PLAYBOOK: peek", file=sys.stderr)
             return 0
         if args.cmd == "ensure-skill":
-            result = ensure_book_to_skill(install=not args.no_install)
-            _print(result)
-            print(
-                f"PLAYBOOK: ensure-skill ok={result.get('ok')} method={result.get('method')}",
-                file=sys.stderr,
-            )
-            return 0 if result.get("ok") else 2
+            # book_to_skill_setup.py 已移除（安全风险：自动拉取执行第三方代码）
+            # 改为仅打印手动安装引导，不自动执行任何远程命令
+            _print({
+                "ok": False,
+                "installed": False,
+                "message": "book-to-skill 未自动安装。如需安装，请手动执行：",
+                "manual_command": "npx --yes skills add virgiliojr94/book-to-skill",
+                "github_page": "https://github.com/virgiliojr94/book-to-skill",
+                "note": "安装前请自行审查该仓库内容，确认安全后再执行。",
+            })
+            print("PLAYBOOK: ensure-skill → 请手动安装 book-to-skill（不自动执行）", file=sys.stderr)
+            return 2
         if args.cmd == "list":
             _cfg, _vault, oa_root = _ctx(args)
             items = list_playbook_records(oa_root)
