@@ -11,13 +11,12 @@ from typing import Any
 DEFAULTS: dict[str, Any] = {
     "goto_timeout_ms": 30_000,
     "goto_wait_until": "commit",
-    "gate_poll_sec": 20.0,
+    "gate_poll_sec": 30.0,
     "gate_poll_step_sec": 1.0,
     "submit_timeout_ms": 40_000,
     "advanced_max_class_codes": 1,
     "advanced_max_terms": 1,
     "home_max_terms": 4,
-    "result_page_size": 10,
     "stop_on_first_nav_failure": True,
 }
 
@@ -29,7 +28,6 @@ _INT_KEYS = frozenset(
         "advanced_max_class_codes",
         "advanced_max_terms",
         "home_max_terms",
-        "result_page_size",
     }
 )
 _FLOAT_KEYS = frozenset({"gate_poll_sec", "gate_poll_step_sec"})
@@ -82,9 +80,6 @@ def _coerce(key: str, raw: Any, default: Any) -> Any:
     if raw is None:
         return default
     try:
-        if key == "result_page_size":
-            val = int(raw)
-            return val if val in (3, 10) else default
         if key in _INT_KEYS:
             val = int(raw)
             return val if val > 0 else default
