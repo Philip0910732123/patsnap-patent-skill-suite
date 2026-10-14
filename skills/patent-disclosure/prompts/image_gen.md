@@ -68,7 +68,7 @@ CAD 投影进 figure_plan 后**重评分**，再跑本脚本；有合格线稿�
 
 1. 先尝试图生图。  
 2. 宿主没有图生图 / 调用失败 / 无法把参考图当条件输入 → **不要停**。对每张参考图写一段可见细节（轮廓、开口、相对位置、禁止臆造的部分），写入 `lineart_assist/{视}_describe.md`。  
-3. 用该描述 + `gen_prompt` **文生图**，仍禁止发明未见结构。
+3. 用该描述 + `gen_prompt` **文生图**，仍禁止发明未见结构。`gen_prompt` 和线稿只许出现 `structure_schema.parts` / 本视 `visible_part_ids` 里的件；其余进 `uncertain`，不要画进轮廓、不要写进权要。
 
 不要写死某一家出图工具名。
 

@@ -71,6 +71,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--plan", default=None, type=optional_path)
     ap.add_argument("--context-anchor", default=None, type=optional_path)
     ap.add_argument("--figures-manifest", default=None, type=optional_path)
+    ap.add_argument(
+        "--claim-features",
+        default=None,
+        type=optional_path,
+        help="独权特征清单 JSON；提供则核对第四节出现全部 feature_id",
+    )
     ap.add_argument("--output", default=None, type=optional_path)
     args = ap.parse_args(argv)
 
@@ -138,6 +144,28 @@ def main(argv: list[str] | None = None) -> int:
             warnings.append("section3_missing_claim_table")
         if "```mermaid" in s3 and "| 结构 |" in s3:
             warnings.append("section3_mermaid_and_table_redundant")
+
+    feat_path = args.claim_features
+    if feat_path is None:
+        parent = args.claim_tree.parent
+        cand = parent / "claim_features.json"
+        if cand.is_file():
+            feat_path = cand
+    if feat_path and feat_path.is_file():
+        try:
+            from analyze.claim_features import normalize_claim_features
+        except ImportError:
+            from tools.patent_reader.analyze.claim_features import (
+                normalize_claim_features,
+            )
+
+        feat_data = normalize_claim_features(load_json(feat_path))
+        sec4 = re.search(r"##\s*四、独立权利要求精读[\s\S]*?(?=##\s*五、)", note)
+        body4 = sec4.group(0) if sec4 else ""
+        for feat in feat_data.get("features") or []:
+            fid = feat.get("feature_id") or ""
+            if fid and fid not in body4:
+                issues.append(f"section4_missing_feature:{fid}")
 
     # 交付正文不得暴露实现痕迹（脚本名 / 流水线字段 / 内部文件名说明）
     if re.search(

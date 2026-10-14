@@ -5,12 +5,15 @@
 
 本文件是检索入口（对外 API 不变）。实际提交有两条路径，由 ``EPUB_FAST_FETCH`` 选择：
 
-| 路径 | 做法 | 实测每词 | 角色 |
+| 路径 | 做法 | 每词条数 | 角色 |
 |------|------|----------|------|
-| **A  fetch**（本文件） | 同会话内 ``fetch`` POST 表单，只取 HTML 文本 | **0.3–0.5 秒** | 默认 |
-| **B  整页导航**（``cnipa_epub_nav.py``） | 填框 → 提交 → 整页导航 → 等 DOM | 约 20 秒 | 兜底 |
+| **B  整页导航**（``cnipa_epub_nav.py``） | 填框 → 提交 → 结果页用站点下拉框切每页 10 条 → 等 DOM | **10** | 默认 |
+| **A  fetch**（本文件） | 同会话内 ``fetch`` POST 表单，只取 HTML 文本 | 3 | 默认关闭，仅排查用 |
 
-路径 A 任何一步不达预期都会**自动回退**到路径 B，行为与改造前一致。
+检索接口 ``/Dxb/IndexQuery`` 固定每页 3 条，不认 ``pageModel.pageSize``。每页 10 条只能在
+结果页上用站点自己的「每页N条」下拉框切换（页面 XHR 到 ``/Dxb/PageQuery``，防护脚本会给它
+加签名；脚本自己发的 fetch/XHR 没有签名，实测 8～20 秒无响应）。路径 A 不打开结果页，做不到。
+后续的词直接在结果页顶部检索框提交，不回首页。
 解析始终由 ``cnipa_epub_parse.py`` 完成，两条路径共用。
 
 ===============================================================================
@@ -34,11 +37,28 @@ Content-Type 后 POST ``/Dxb/IndexQuery``，拿回的是 **202 + 约 3.1KB 挑�
 该 cookie 需要页面内 JS 持续参与，脱离浏览器运行时即失效。
 **结论：不要再尝试"加请求头直连"或复用 cookie 的离线抓取方案。**
 
-**3. 指纹敏感：UA 必须覆盖。**
+**3. 指纹敏感：UA 用本机浏览器自己的，只去掉 ``HeadlessChrome``。**
 未覆盖 UA 时无头浏览器自带 ``HeadlessChrome/<ver>``，实测**直接不放行**：
 首页 DOM 仅 39 字节、``<title>`` 为空、``#searchStr`` 等到超时也不出现。
-``cnipa_epub_nav._new_context`` 覆盖为桌面 Chrome UA 是必需项，**不可删**。
+UA 里的版本号还须与真实内核一致（``tools/browser.browser_user_agent``）。写死旧版本
+（内核 154 却报 ``Chrome/120``）时 GET 照常放行，**POST 提交却回 400**：正文 6 字节，
+页面变成 ``<html><head></head><body></body></html>``（39 字节）。2026-10 实测同一轻查询
+旧 UA 2/2 被拒，真实版本号 3/3 通过。
 启动参数 ``--disable-blink-features=AutomationControlled``（见 ``tools/browser.py``）同理。
+
+挑战页与拒绝页的特征（用于归类，不能跳过——挑战 JS 必须由浏览器跑完才放行）：
+
+| 状态 | 特征 | 处理 |
+|------|------|------|
+| 挑战页 | GET 回 202，约 2.7KB，含 ``$_ts``，随后自跳转到 200 | gate 轮询等它跑完，正常 6–15 秒 |
+| 提交被拒 | 查询 POST 回 400 等非 200 / 非 5xx，页面空白 | 立即报 submit 失败；冷却后换新会话重试一次 |
+| 后端超时 | 查询 POST 回 504（宽条件如只填 ``B25J``，可等满 300 秒） | 不重试，缩窄条件 |
+
+检索框一出现就提交（零点几秒内）同样会被回 400：gate 之后先等页面 ``load`` 完成再静置
+2 秒（``cnipa_epub_nav._settle_after_load``）才提交或 fetch。
+
+结果页 HTML 原文里的 ``<title>`` 与部分字段是 ``&#x…;`` 实体（DOM 里是中文），
+按原文判断标题前须先反转义（见 ``_looks_like_result_html``）。
 
 **4. 限流是会话级的，且不可逆。**
 连续无间隔提交，**第 3 次**起即被拒（返回 400 或直接挂住）。一旦触发，该浏览器上下文
@@ -84,7 +104,7 @@ Content-Type 后 POST ``/Dxb/IndexQuery``，拿回的是 **202 + 约 3.1KB 挑�
 ===============================================================================
 环境变量
 ===============================================================================
-  EPUB_FAST_FETCH=0 / false    关闭路径 A，全程走整页导航（排查站点改版时用）
+  EPUB_FAST_FETCH=1 / true     打开路径 A（每词只有 3 条，仅排查站点改版时用）
   EPUB_PACE_FILE               自适应节奏持久化路径；设 ``off`` 关闭持久化
   PLAYWRIGHT_HEADED=1          有界面浏览器
   EPUB_WAIT_YAML               覆盖等待参数 YAML 路径
@@ -93,6 +113,7 @@ Content-Type 后 POST ``/Dxb/IndexQuery``，拿回的是 **202 + 约 3.1KB 挑�
 """
 from __future__ import annotations
 
+import html as html_lib
 import json
 import os
 import sys
@@ -134,10 +155,10 @@ from cnipa_epub_wait import EpubNavError, load_wait_config, progress
 # 也让 `patch("cnipa_epub_crawler.submit_index_search")` 等测试替身继续生效
 # （下方回退路径一律按模块级名字调用，不写成 nav.xxx）。
 from cnipa_epub_nav import (  # noqa: F401  (re-export)
-    DEFAULT_USER_AGENT,
     EPUB_ADVANCED,
     EPUB_ADVANCED_CHECKBOX,
     EPUB_BASE,
+    EPUB_PAGE_SIZE,
     EPUB_TITLE_NO_HIT,
     EPUB_TITLE_RESULT,
     _RESULT_PAGE_READY_JS,
@@ -152,6 +173,7 @@ from cnipa_epub_nav import (  # noqa: F401  (re-export)
     _wait_selector,
     apply_epub_advanced_type_filter,
     apply_epub_type_filter,
+    apply_result_page_size,
     default_result_html_path,
     open_epub_advanced_search,
     submit_advanced_search,
@@ -164,9 +186,9 @@ from cnipa_epub_nav import (  # noqa: F401  (re-export)
 # 路径 A：同会话 fetch 提交
 # ---------------------------------------------------------------------------
 
-#: 总开关。True=优先 fetch 快路径，失败自动回退整页导航；False=全程整页导航。
-#: 环境变量 EPUB_FAST_FETCH=0/false/no/off 可临时关闭（排查站点改版时用）。
-EPUB_FAST_FETCH = True
+#: 总开关。True=优先 fetch 快路径（每词 3 条）；False=全程整页导航（每词 10 条）。
+#: 环境变量 EPUB_FAST_FETCH=1/0 可临时覆盖。
+EPUB_FAST_FETCH = False
 
 # --- 自适应节流 -------------------------------------------------------------
 # 借鉴 TCP **Vegas / BBR** 一支：用**延迟变化**当早期拥塞信号，在被拒之前退让。
@@ -276,53 +298,6 @@ _FAST_FETCH_JS = """async ({term, states, timeoutMs}) => {
   }
 }"""
 
-# 公布模式结果页把 #pageSize 改成 10 再 POST #query_form。
-# 快路径第一跳仍停在首页，必须用结果 HTML 的 DOMParser，不能改当前页表单。
-# 不要清空 #searchAfter（公布站会 HTTP 400）。
-_RESULT_RESIZE_JS = """async ({ html, pageSize, timeoutMs }) => {
-  const wanted = String(pageSize);
-  const parsed = new DOMParser().parseFromString(html || '', 'text/html');
-  const form = parsed.querySelector('#query_form')
-    || parsed.querySelector('form#query_form')
-    || parsed.querySelector('form[name="query_form"]');
-  const sizeEl = form && form.querySelector('#pageSize');
-  if (!form || !sizeEl) return { ok: false, reason: 'no_form' };
-  if (sizeEl.value === wanted) return { ok: true, skipped: true, html };
-  sizeEl.value = wanted;
-  const sel = form.querySelector('#sizeSelect');
-  if (sel) sel.value = wanted;
-  const pageNum = form.querySelector('#pageNum');
-  if (pageNum) pageNum.value = '1';
-  const rawAction = form.getAttribute('action');
-  let url;
-  try {
-    url = rawAction ? new URL(rawAction, location.origin).href
-      : new URL('/Dxb/IndexQuery', location.origin).href;
-  } catch (e) {
-    url = '/Dxb/IndexQuery';
-  }
-  try {
-    const body = new URLSearchParams(new FormData(form));
-    body.set('pageSize', wanted);
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(url, {
-      method: (form.getAttribute('method') || 'POST').toUpperCase(),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
-      body: body.toString(),
-      credentials: 'include',
-      signal: ctrl.signal,
-    });
-    clearTimeout(t);
-    const text = await res.text();
-    if (!res.ok) return { ok: false, reason: 'http_' + res.status };
-    return { ok: true, skipped: false, html: text };
-  } catch (e) {
-    return { ok: false, reason: 'exception', message: String(e) };
-  }
-};
-"""
-
 
 def _cfg() -> dict:
     return load_wait_config()
@@ -346,62 +321,16 @@ def _looks_like_result_html(html: Any) -> bool:
     """区分「真结果页」与「挑战页 / 错误页」。
 
     挑战页约 3.1KB 且不含结果页 title；0 条命中的页面 title 为「无查询结果」，属正常结果。
+    原文 title 是 ``&#x…;`` 实体，先反转义再比对。
     """
     if not isinstance(html, str) or len(html) < _FAST_MIN_HTML_BYTES:
         return False
+    head = html_lib.unescape(html[:8000])
     return (
-        EPUB_TITLE_RESULT in html
-        or EPUB_TITLE_NO_HIT in html
+        EPUB_TITLE_RESULT in head
+        or EPUB_TITLE_NO_HIT in head
         or 'class="item"' in html
     )
-
-
-def _result_page_size() -> int:
-    raw = _cfg().get("result_page_size", 10)
-    try:
-        n = int(raw)
-    except (TypeError, ValueError):
-        return 10
-    return n if n in (3, 10) else 10
-
-
-def _enlarge_result_html(page, html: str) -> str:
-    """公布模式默认每页 3 条；配置为 10 时用结果页表单再拉一页。失败则保留原 HTML。"""
-    wanted = _result_page_size()
-    if wanted == 3 or not html:
-        return html
-    try:
-        res = page.evaluate(
-            _RESULT_RESIZE_JS,
-            {
-                "html": html,
-                "pageSize": wanted,
-                "timeoutMs": FAST_FETCH_TIMEOUT_MS,
-            },
-        )
-    except Error:
-        return html
-    if not isinstance(res, dict) or not res.get("ok"):
-        reason = res.get("reason") if isinstance(res, dict) else "unsupported"
-        print(
-            f"EPUB_NOTE: page_size_resize_skip wanted={wanted} reason={reason}",
-            file=sys.stderr,
-            flush=True,
-        )
-        return html
-    new_html = res.get("html")
-    if not isinstance(new_html, str) or not _looks_like_result_html(new_html):
-        return html
-    if res.get("skipped"):
-        return html
-    n_old = len(parse_search_result_html(html))
-    n_new = len(parse_search_result_html(new_html))
-    print(
-        f"EPUB_NOTE: page_size {n_old}->{n_new} wanted={wanted}",
-        file=sys.stderr,
-        flush=True,
-    )
-    return new_html
 
 
 def _pace_path() -> Path | None:
@@ -726,6 +655,41 @@ def search_epub_keywords(
         session = _FastSession(browser)
         # 快路径仅用于首页检索；高级查询字段未经 fetch 实测，继续走导航。
         fast_on = fast_fetch_enabled() and not codes
+
+        def _run_hop(code: str, keyword: str) -> str:
+            nonlocal fast_on
+            page = session.ensure_page()
+            html: str | None = None
+            if fast_on:
+                # gate 与导航路径共用；检索框已在时是空操作。
+                wait_for_epub_home_ready(page)
+                html = session.query(keyword, patent_type)
+                if html is None:
+                    # 站点改版 / 被拦 / 环境不支持：本轮不再试，整轮回退导航。
+                    fast_on = False
+                    print(
+                        "EPUB_NOTE: fast_fetch_unavailable fallback=nav",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            if html is None:
+                # 快路径可能已重建过会话，重新取 page。
+                page = session.ensure_page()
+                if not code:
+                    wait_for_epub_home_ready(page)
+                    submit_index_search(page, keyword, patent_type=patent_type)
+                else:
+                    wait_for_epub_advanced_ready(page)
+                    submit_advanced_search(
+                        page,
+                        keyword,
+                        class_code=code,
+                        patent_type=patent_type,
+                    )
+                apply_result_page_size(page, advanced=bool(code))
+                html = _safe_page_content(page)
+            return html
+
         try:
             out: list[tuple[str, list[EpubSearchHit]]] = []
             hops: list[tuple[str, str]]
@@ -734,6 +698,8 @@ def search_epub_keywords(
             else:
                 hops = [(code, keyword) for code in codes for keyword in kw_list]
             total = len(hops)
+            # gate 长尾或单次提交被拒时，一轮内允许冷却后换新会话重试一次。
+            fresh_retry_left = 1
             for i, (code, keyword) in enumerate(hops, start=1):
                 label = (
                     f"stage=home term={keyword} i={i}/{total}"
@@ -741,58 +707,44 @@ def search_epub_keywords(
                     else f"stage=advanced class={code} term={keyword or '-'} i={i}/{total}"
                 )
                 progress(label)
-                try:
-                    page = session.ensure_page()
-                    html: str | None = None
-                    if fast_on:
-                        # gate 与导航路径共用；检索框已在时是空操作。
-                        wait_for_epub_home_ready(page)
-                        html = session.query(keyword, patent_type)
-                        if html is None:
-                            # 站点改版 / 被拦 / 环境不支持：本轮不再试，整轮回退导航。
-                            fast_on = False
-                            print(
-                                "EPUB_NOTE: fast_fetch_unavailable fallback=nav",
-                                file=sys.stderr,
-                                flush=True,
-                            )
-                    if html is None:
-                        # 快路径可能已重建过会话，重新取 page。
-                        page = session.ensure_page()
-                        if not code:
-                            wait_for_epub_home_ready(page)
-                            submit_index_search(page, keyword, patent_type=patent_type)
-                        else:
-                            wait_for_epub_advanced_ready(page)
-                            submit_advanced_search(
-                                page,
-                                keyword,
-                                class_code=code,
-                                patent_type=patent_type,
-                            )
-                        html = _safe_page_content(page)
-                    html = _enlarge_result_html(page, html)
-                    out.append((html, parse_search_result_html(html)))
-                except EpubNavError as exc:
-                    remaining = total - i
-                    progress(
-                        f"stage={exc.stage} remaining_skipped={remaining} hint={exc.hint}"
-                    )
-                    if not stop:
-                        print(
-                            f"EPUB_NOTE: hop_failed_continue stage={exc.stage} hint={exc.hint}",
-                            file=sys.stderr,
-                            flush=True,
+                failure: EpubNavError | None = None
+                for _attempt in (1, 2):
+                    try:
+                        html = _run_hop(code, keyword)
+                        out.append((html, parse_search_result_html(html)))
+                        failure = None
+                        break
+                    except EpubNavError as exc:
+                        failure = exc
+                        if fresh_retry_left <= 0:
+                            break
+                        fresh_retry_left -= 1
+                        progress(
+                            f"stage=fresh_session_retry after={exc.stage} hint={exc.hint or '-'}"
                         )
-                        continue
+                        if session.rebuild() is None:
+                            break
+                if failure is None:
+                    continue
+                remaining = total - i
+                progress(
+                    f"stage={failure.stage} remaining_skipped={remaining} hint={failure.hint}"
+                )
+                if not stop:
                     print(
-                        f"EPUB_NOTE: stopped_after_failure stage={exc.stage} hint={exc.hint}",
+                        f"EPUB_NOTE: hop_failed_continue stage={failure.stage} hint={failure.hint}",
                         file=sys.stderr,
                         flush=True,
                     )
-                    if out:
-                        return out
-                    raise
+                    continue
+                print(
+                    f"EPUB_NOTE: stopped_after_failure stage={failure.stage} hint={failure.hint}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                if out:
+                    return out
+                raise failure
             return out
         finally:
             if fast_fetch_enabled() and not codes:
