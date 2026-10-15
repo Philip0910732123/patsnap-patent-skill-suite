@@ -105,7 +105,8 @@ python tools/design_lineart_gate.py --case-dir outputs/case --prepare-jobs
 |-------------|------|
 | **`prompts/structure_lineart_assist.md`** | 不问用户；轮廓 → 按件拼装 → 按 Structure 叠件号 |
 | **`prompts/structure_lineart_compose.md`** | 独立拼装指令：每件一个子 SVG；总图相对引用；粒度止于件号 |
-| **`structure_lineart_gate.py`** | 默认开；无 Structure 拒绝；无源图则允许文生图 |
+| **`structure_lineart_gate.py`** | 默认开；无 Structure 拒绝；无源图则允许文生图；并入 `check_source_parts` 的 ERROR |
+| **`check_source_parts.py`** | 源材料门禁：未披露件号 / 幻觉 covers / uncertain 进权要 |
 | **`structure_lineart_compose.py`** | 读 compose YAML，写出 `parts/{视}_{id}.svg` 与相对引用的总 SVG |
 | **`structure_callout_overlay.py`** | 读取锚点后以 SVG 叠标；默认按原图墨线把序号推出实体/内腔、把引线终点吸到墨线；有 `base_svg_path` 时注入拼装图；叠标后扩大画布留白 |
 | **`references/schemas/structure_lineart_brief.schema.yaml`** | 描述合同（与外观分文件） |
@@ -114,6 +115,7 @@ python tools/design_lineart_gate.py --case-dir outputs/case --prepare-jobs
 
 ```bash
 python tools/structure_lineart_gate.py --case-dir outputs/case --prepare-jobs
+python tools/check_source_parts.py --case-dir outputs/case --write
 python tools/structure_lineart_compose.py --case-dir outputs/case
 python tools/structure_callout_overlay.py --case-dir outputs/case --anchors outputs/case/structure_callout_anchors.yaml
 ```
