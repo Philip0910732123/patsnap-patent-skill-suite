@@ -16,6 +16,9 @@ product_name: ""
 overall_shape: ""             # 与 AppearanceSchema 对齐，可略作线稿强调改写
 product_form: solid           # 与 AppearanceSchema 对齐：solid | planar
 claimed_faces: []             # 官方全称；与 schema 要点落面一致；只为这些面 + 立体图出线稿
+line_scope:                   # 抄 AppearanceSchema；gen_prompt 须遵守实线/虚线
+  claimed: []
+  unclaimed: []
 design_points: []             # 须在参考图上可看见；无参考图则来自 schema
 forbid:
   - 内部结构 / 电路 / 受力

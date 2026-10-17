@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """把已填好的意见陈述 Markdown 转为 Word。
 
-只用本包 ``md_to_docx.py`` 副本，禁止调用交底包。默认 ``--no-omml``（陈述书一般无公式）。
+只用本包 ``md_to_docx.py`` 副本。默认 ``--no-omml``（陈述书一般无公式）。
 
 用法：
   python skills/patent-oa/tools/emit_opinion_docx.py -i outputs/oa/案/意见陈述_20260903120000.md
