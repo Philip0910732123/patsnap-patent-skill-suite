@@ -12,12 +12,15 @@ sys.path.insert(0, str(PKG / "tools" / "crawl"))
 sys.path.insert(0, str(PKG / "tools"))
 
 from cnipa_epub_crawler import (
+    EPUB_PAGE_SIZE,
     EPUB_TITLE_NO_HIT,
     EPUB_TITLE_RESULT,
     _RESULT_PAGE_READY_JS,
     _FastSession,
+    _looks_like_result_html,
     apply_epub_type_filter,
-    _enlarge_result_html,
+    apply_result_page_size,
+    fast_fetch_enabled,
     search_epub_keywords,
     submit_index_search,
     wait_for_epub_home_ready,
@@ -94,18 +97,33 @@ class ApplyTypeFilterTests(unittest.TestCase):
         boxes["wgsq"].uncheck.assert_called()
 
 
+def _page_with_status(status: int = 200) -> MagicMock:
+    page = MagicMock()
+    page.expect_response.return_value.__enter__.return_value.value.status = status
+    return page
+
+
 class SubmitIndexSearchTests(unittest.TestCase):
-    def test_uses_committed_navigation_and_result_ready_wait(self) -> None:
-        page = MagicMock()
+    def test_waits_for_query_document_then_result_dom(self) -> None:
+        page = _page_with_status(200)
         submit_index_search(page, "数据标注")
-        page.expect_navigation.assert_called_once_with(timeout=40_000, wait_until="commit")
+        page.expect_response.assert_called_once()
+        self.assertEqual(page.expect_response.call_args.kwargs.get("timeout"), 40_000)
         page.wait_for_function.assert_called_once()
         self.assertEqual(page.wait_for_function.call_args.kwargs.get("timeout"), 40_000)
         page.wait_for_load_state.assert_not_called()
         page.wait_for_timeout.assert_not_called()
 
+    def test_rejected_submit_fails_fast(self) -> None:
+        page = _page_with_status(400)
+        with self.assertRaises(EpubNavError) as ctx:
+            submit_index_search(page, "数据标注")
+        self.assertEqual(ctx.exception.stage, "submit")
+        self.assertIn("HTTP 400", str(ctx.exception))
+        page.wait_for_function.assert_not_called()
+
     def test_wait_checks_result_dom_not_title_only(self) -> None:
-        page = MagicMock()
+        page = _page_with_status(200)
         submit_index_search(page, "数据标注")
         js = page.wait_for_function.call_args.args[0]
         self.assertIs(js, _RESULT_PAGE_READY_JS)
@@ -114,7 +132,7 @@ class SubmitIndexSearchTests(unittest.TestCase):
         self.assertIn("h1.title", js)
 
     def test_applies_type_before_fill(self) -> None:
-        page = MagicMock()
+        page = _page_with_status(200)
         boxes = {cid: MagicMock() for cid in ("fmgb", "fmsq", "xxsq", "wgsq")}
         page.query_selector.side_effect = lambda sel: boxes.get(sel.lstrip("#")) if sel.startswith("#f") or sel.startswith("#x") or sel.startswith("#w") or sel == "#indexForm" else (boxes.get(sel.lstrip("#")) if sel.startswith("#") else MagicMock())
         # simpler: always return MagicMock for form/search
@@ -133,6 +151,15 @@ class TitleConstantsTests(unittest.TestCase):
     def test_titles(self) -> None:
         self.assertEqual(EPUB_TITLE_RESULT, "专利查询结果展示")
         self.assertEqual(EPUB_TITLE_NO_HIT, "无查询结果")
+
+    def test_entity_encoded_no_hit_title_is_a_result(self) -> None:
+        encoded = "".join(f"&#x{ord(ch):X};" for ch in EPUB_TITLE_NO_HIT)
+        html = f"<html><head><title>{encoded}</title></head><body>{'x' * 3000}</body></html>"
+        self.assertTrue(_looks_like_result_html(html))
+
+    def test_challenge_page_is_not_a_result(self) -> None:
+        html = "<html><head><script>$_ts=window['$_ts']</script></head>" + "x" * 2600
+        self.assertFalse(_looks_like_result_html(html))
 
 
 class FailFastWaitTests(unittest.TestCase):
@@ -177,7 +204,7 @@ class FailFastWaitTests(unittest.TestCase):
 
 
 class StopOnFirstFailureTests(unittest.TestCase):
-    def test_later_hops_not_run(self) -> None:
+    def _run(self, submit_side_effect, terms):
         pw = MagicMock()
         pw.__enter__.return_value = pw
         pw.__exit__.return_value = None
@@ -185,38 +212,50 @@ class StopOnFirstFailureTests(unittest.TestCase):
         ctx = MagicMock()
         page = MagicMock()
         ctx.new_page.return_value = page
+        cfg = dict(DEFAULTS)
+        cfg["stop_on_first_nav_failure"] = True
+        with patch("cnipa_epub_crawler.sync_playwright", return_value=pw), patch(
+            "cnipa_epub_crawler._launch_browser", return_value=browser
+        ), patch("cnipa_epub_crawler._new_context", return_value=ctx), patch(
+            "cnipa_epub_crawler.wait_for_epub_home_ready"
+        ), patch(
+            "cnipa_epub_crawler.submit_index_search", side_effect=submit_side_effect
+        ) as submit, patch(
+            "cnipa_epub_crawler._safe_page_content", return_value="<html></html>"
+        ), patch(
+            "cnipa_epub_crawler.parse_search_result_html", return_value=[]
+        ), patch(
+            "cnipa_epub_crawler.load_wait_config", return_value=cfg
+        ), patch(
+            "cnipa_epub_crawler.fast_fetch_enabled", return_value=False
+        ), patch("cnipa_epub_crawler.apply_result_page_size"), patch(
+            "cnipa_epub_crawler.time.sleep"
+        ) as sleep:
+            rows = search_epub_keywords(terms)
+        return rows, submit, sleep
 
+    def test_later_hops_not_run(self) -> None:
         def _submit(_page, keyword, patent_type="all"):
             if keyword == "词2":
                 raise EpubNavError("submit", hint="skip_epub", message="导航超时")
 
-        cfg = dict(DEFAULTS)
-        cfg["stop_on_first_nav_failure"] = True
-        with patch("cnipa_epub_crawler.sync_playwright", return_value=pw):
-            with patch("cnipa_epub_crawler._launch_browser", return_value=browser):
-                with patch("cnipa_epub_crawler._new_context", return_value=ctx):
-                    with patch("cnipa_epub_crawler.wait_for_epub_home_ready"):
-                        with patch(
-                            "cnipa_epub_crawler.submit_index_search",
-                            side_effect=_submit,
-                        ) as submit:
-                            with patch(
-                                "cnipa_epub_crawler._safe_page_content",
-                                return_value="<html></html>",
-                            ):
-                                with patch(
-                                    "cnipa_epub_crawler.parse_search_result_html",
-                                    return_value=[],
-                                ):
-                                    with patch(
-                                        "cnipa_epub_crawler.load_wait_config",
-                                        return_value=cfg,
-                                    ):
-                                        rows = search_epub_keywords(
-                                            ["词1", "词2", "词3"]
-                                        )
+        rows, submit, sleep = self._run(_submit, ["词1", "词2", "词3"])
         self.assertEqual(len(rows), 1)
-        self.assertEqual(submit.call_count, 2)
+        # 词2 失败后换新会话重试一次，仍失败才停止；词3 不再跑。
+        self.assertEqual(submit.call_count, 3)
+        sleep.assert_called_once()
+
+    def test_fresh_session_retry_recovers_hop(self) -> None:
+        calls = {"n": 0}
+
+        def _submit(_page, keyword, patent_type="all"):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise EpubNavError("submit", hint="skip_epub", message="公布站防护拒绝提交（HTTP 400）")
+
+        rows, submit, _ = self._run(_submit, ["词1", "词2"])
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(submit.call_count, 3)
 
 
 class FastSessionFallbackTests(unittest.TestCase):
@@ -313,7 +352,10 @@ class FastSessionFallbackTests(unittest.TestCase):
                                     with patch(
                                         "cnipa_epub_crawler.load_wait_config",
                                         return_value=cfg,
-                                    ):
+                                    ), patch(
+                                        "cnipa_epub_crawler.fast_fetch_enabled",
+                                        return_value=True,
+                                    ), patch("cnipa_epub_crawler.apply_result_page_size"):
                                         rows = search_epub_keywords(["批任务调度"])
         self.assertEqual(len(rows), 1)
         submit.assert_called_once()
@@ -361,7 +403,10 @@ class FastSessionFallbackTests(unittest.TestCase):
                                         with patch(
                                             "cnipa_epub_crawler.load_wait_config",
                                             return_value=cfg,
-                                        ):
+                                        ), patch(
+                                            "cnipa_epub_crawler.fast_fetch_enabled",
+                                            return_value=True,
+                                        ), patch("cnipa_epub_crawler.apply_result_page_size"):
                                             rows = search_epub_keywords(["批任务调度"])
         self.assertEqual(len(rows), 1)
         submit.assert_called_once()
@@ -369,46 +414,43 @@ class FastSessionFallbackTests(unittest.TestCase):
 
 class ResultPageSizeTests(unittest.TestCase):
     def test_defaults(self) -> None:
-        self.assertEqual(DEFAULTS["result_page_size"], 10)
         self.assertEqual(DEFAULTS["home_max_terms"], 4)
+        self.assertNotIn("result_page_size", DEFAULTS)
+        self.assertEqual(EPUB_PAGE_SIZE, 10)
 
-    def test_enlarge_skipped_when_size_is_three(self) -> None:
-        page = MagicMock()
-        cfg = dict(DEFAULTS)
-        cfg["result_page_size"] = 3
-        with patch("cnipa_epub_crawler.load_wait_config", return_value=cfg):
-            out = _enlarge_result_html(page, "<html>keep</html>")
-        self.assertEqual(out, "<html>keep</html>")
-        page.evaluate.assert_not_called()
+    def test_fast_fetch_is_off_by_default(self) -> None:
+        with patch.dict("os.environ", {"EPUB_FAST_FETCH": ""}):
+            self.assertFalse(fast_fetch_enabled())
 
-    def test_enlarge_keeps_html_on_failure(self) -> None:
+    @staticmethod
+    def _result_page(items: int, total: int | None, size: str = "3", status: int = 200) -> MagicMock:
         page = MagicMock()
-        page.evaluate.return_value = {"ok": False, "reason": "no_form"}
-        cfg = dict(DEFAULTS)
-        cfg["result_page_size"] = 10
-        html = "<html>" + ("x" * 3000) + EPUB_TITLE_RESULT + "</html>"
-        with patch("cnipa_epub_crawler.load_wait_config", return_value=cfg):
-            out = _enlarge_result_html(page, html)
-        self.assertEqual(out, html)
+        page.evaluate.return_value = {"items": items, "total": total, "size": size}
+        page.expect_response.return_value.__enter__.return_value.value.status = status
+        return page
 
-    def test_enlarge_uses_resized_html(self) -> None:
+    def test_switches_to_ten_with_site_select(self) -> None:
+        page = self._result_page(3, 21081)
+        apply_result_page_size(page, advanced=False)
+        page.select_option.assert_called_once_with("#sizeSelect", "10")
+        self.assertEqual(page.wait_for_function.call_args.kwargs.get("arg"), 10)
+
+    def test_small_total_needs_no_switch(self) -> None:
+        page = self._result_page(2, 2)
+        apply_result_page_size(page, advanced=False)
+        page.select_option.assert_not_called()
+
+    def test_zero_hit_page_has_no_select(self) -> None:
         page = MagicMock()
-        new_html = "<html>" + ("y" * 3000) + EPUB_TITLE_RESULT + "</html>"
-        page.evaluate.return_value = {
-            "ok": True,
-            "skipped": False,
-            "html": new_html,
-        }
-        cfg = dict(DEFAULTS)
-        cfg["result_page_size"] = 10
-        old = "<html>" + ("x" * 3000) + EPUB_TITLE_RESULT + "</html>"
-        with patch("cnipa_epub_crawler.load_wait_config", return_value=cfg):
-            with patch(
-                "cnipa_epub_crawler.parse_search_result_html",
-                side_effect=[[1], [1, 2, 3]],
-            ):
-                out = _enlarge_result_html(page, old)
-        self.assertEqual(out, new_html)
+        page.query_selector.return_value = None
+        apply_result_page_size(page, advanced=False)
+        page.select_option.assert_not_called()
+
+    def test_rejected_switch_raises_instead_of_keeping_three(self) -> None:
+        page = self._result_page(3, 500, status=400)
+        with self.assertRaises(EpubNavError) as ctx:
+            apply_result_page_size(page, advanced=False)
+        self.assertEqual(ctx.exception.stage, "page_size")
 
 
 if __name__ == "__main__":

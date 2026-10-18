@@ -38,4 +38,6 @@ python skills/patent-oa/tools/search_cases.py \
 待答复通知书 skills/patent-oa/examples/example_oa_response/pending/oa_notice_pending.md
 ```
 
+本通知书有对比文件，出草稿后同一会话目录还应有 `对照表-审查答复-{会话}.xlsx`（「驳回映射」页）。确认后才出意见陈述 Word；对照表不写入 Word。
+
 细则见 [SKILL.md](../../SKILL.md)、`skills/patent-oa/prompts/`。
