@@ -281,6 +281,18 @@ def application_number_for_epub_query(value: str | None) -> str | None:
     return compact or None
 
 
+def publication_number_for_epub_query(value: str | None) -> str | None:
+    """公布站高级查询 ``#pn``：去掉 ``CN`` / ``ZL`` 前缀与空白，保留种类字母与 ``?`` / ``%``。
+
+    官方例为 ``102853527`` / ``102853527A`` / ``10285``，不含国别前缀。
+    不截短完整号，不自动包 ``%``。
+    """
+    text = re.sub(r"\s+", "", value or "")
+    if not text:
+        return None
+    return re.sub(r"^(?:CN|ZL)+", "", text, flags=re.IGNORECASE) or None
+
+
 def _split_people(value: str | None) -> list[str] | None:
     if not value:
         return None

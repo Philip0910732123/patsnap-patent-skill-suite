@@ -79,6 +79,18 @@ class NumeralRegisterTests(unittest.TestCase):
         codes = {item.code for item in findings if item.level == "ERROR"}
         self.assertIn("CLAIM_MARK_MISSING", codes)
 
+    def test_cross_name_and_unregistered_mark(self) -> None:
+        findings = check_register(
+            REGISTER_OK,
+            schema=SCHEMA,
+            figure_plan=PLAN,
+            claims_text=CLAIMS,
+            spec_text="本实用新型包括壳体（1）与端盖（1）。另有垫片（9）。如图1所示。\n",
+        )
+        codes = {item.code for item in findings if item.level == "ERROR"}
+        self.assertIn("CROSS_NAME", codes)
+        self.assertIn("MARK_UNREGISTERED", codes)
+
 
 if __name__ == "__main__":
     unittest.main()

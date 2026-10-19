@@ -27,7 +27,7 @@ python skills/patent-reader/tools/vault/check_obsidian_env.py --json
 | 结果 | Agent 行为 |
 |------|------------|
 | `status=ready` 且有 `resolved.vault` | 可 `--auto-accept` 写入持久化；本会话设置 `PATENT_READER_OBSIDIAN_VAULT` 后继续 |
-| `needs_user_input=true`（未装 / 多库 / 无库） | **暂停取证**，**强烈建议**用户给出库根路径以获得完整体验（常见：`C:\Users\<用户>\Documents\Obsidian Vault`）；仅当用户明确只要 Markdown / 不要库时，才降级 `outputs/` |
+| `needs_user_input=true`（未装 / 多库 / 无库） | **暂停取证**，**强烈建议**用户给出库根路径以获得完整体验（常见：`C:\Users\<用户>\Documents\Obsidian Vault`）；仅当用户明确只要 Markdown / 不要库时，才降级 `outputs/`。**对照表派工除外**：直接降级继续取证，不要问库路径 |
 | 用户提供路径后 | 执行 `--set "路径"`（Windows 可选再加 `--setx`），并在后续 Shell 中带上该环境变量 |
 
 ```bash
@@ -41,6 +41,8 @@ python skills/patent-reader/tools/vault/check_obsidian_env.py --set "库路径" 
 持久化文件：`~/.patent-disclosure-skill/obsidian_vault.txt`（脚本自动读，不单靠环境变量）。
 
 用户明确说「只要 Markdown / 不要 Obsidian」→ 跳过入库增强，写入 `outputs/` 即可。
+
+**被对照表（`patent-chart`）派工时**：不要因 `needs_user_input` 暂停取证。Obsidian 未就绪就降级写 `outputs/patent_reader/`，把 **`claim_features.json`**（以及尽量 `description_paragraphs.json`）跑完再交还路径。对照表默认**连从属权利要求一起拆**成特征行，除非用户明确只要独权。
 
 ## Obsidian 增强（L0–L2）
 
@@ -80,9 +82,11 @@ python skills/patent-reader/tools/patent_type.py --pub <公开号>
 
 实用 / 外观 → 按 `type_hooks.md` 填 Schema（**有公开号即应自动触发**，勿等用户口头说类型）。
 
-失败时：用本包 `tools/crawl/cnipa_epub_crawler.py` **核验**公开号/摘要（通常无全文 PDF）→ 请用户自备 PDF，或稍后重试 Google CDN。**勿**臆造 PDF URL，**勿**调用交底查新脚本。
+失败时按报错处理，不要编造 PDF 直链：「未收录」（新公开专利尚未上 Google）或「连不上」（检查网络后重试一次）→ 请用户提供 PDF。全文只走 Google Patents，正常 3 秒内完成；不要改走国知局下全文。
 
-**外观设计（公开号 `CN…S`）**：`fetch_patent_pdf.py` 常因无 CDN 失败。应改用：
+**对照表派工**：取证成功后只跑 `extract_patent_text.py`，校对权要树，写出 `claim_features.json`（含从权）和 `description_paragraphs.json`，把路径交回对照表。不写通俗笔记，不入库，不裁附图，不写技术功效。
+
+**外观设计（公开号 `CN…S`）**：Google 多无 PDF，`fetch_patent_pdf.py` 会报「有详情页但没有 PDF」。改用：
 
 ```bash
 python skills/patent-reader/tools/extract/fetch_design_views.py \
@@ -230,6 +234,43 @@ python skills/patent-reader/tools/analyze/validate_claim_tree.py \
 - 也可写在 `note_plan.json` 的 `claim_deltas` 字段（同结构）；或写入 `claim_tree.json` 各 node 的 `delta` 字段。
 - 入库时**优先**用本文件；缺省权号才用脚本启发式从 `text_preview` 截句（效果较差）。
 
+### 第 1.62 步：`claim_features.json`（Agent 主路径 · 独权特征行）
+
+在**已校对**的 `claim_tree.json` 上，把每项**独立权利要求**拆成稳定技术特征行，供对照表当左列，也供第四节 / 第六节表。
+
+写入 `outputs/patent_reader/${RUN}/claim_features.json`：
+
+```json
+{
+  "pub_number": "CN219812345U",
+  "source": "agent",
+  "features": [
+    {
+      "feature_id": "F1",
+      "claim_no": 1,
+      "text": "壳体与端盖围出冷却腔",
+      "plain": "壳体和端盖围成冷却腔",
+      "desc_paras": ["0021"],
+      "part_ids": [],
+      "figures": ["图1"]
+    }
+  ]
+}
+```
+
+- `text` 必须是权要**原文短语**，禁止意译、禁止合并两条限定。
+- `feature_id` 全局唯一，形如 `F1`、`F2`；从属权默认不拆，用户点名才加行。**对照表派工除外**：默认把从属权也拆进 `claim_features.json`。
+- `desc_paras` 用说明书四位段号；对不上就留空，不要编段号。
+- 第四节表的「特征 / 大白话 / 说明书依据」与第六节对照表必须用这些 `F` 编号。入库会按本文件重写这两张表；**不要**把 Fk 画进 Canvas。
+
+```bash
+python skills/patent-reader/tools/analyze/validate_claim_features.py \
+  -i outputs/patent_reader/${RUN}/claim_features.json \
+  --write
+```
+
+有 issues 必须修到通过。
+
 ### 第 1.65 步：`tech_effect.json`（Agent 主路径 · 技术功效矩阵）
 
 为专利地图抽出**技术手段 × 技术功效**。对照权利要求与说明书，写 `outputs/patent_reader/${RUN}/tech_effect.json`，并写入笔记 frontmatter 同名字段。
@@ -344,6 +385,7 @@ python skills/patent-reader/tools/analyze/lint_patent_note.py \
   --note <笔记.md> \
   --manifest outputs/patent_reader/${RUN}/source_manifest.json \
   --claim-tree outputs/patent_reader/${RUN}/claim_tree.json \
+  --claim-features outputs/patent_reader/${RUN}/claim_features.json \
   --plan outputs/patent_reader/${RUN}/note_plan.json \
   --context-anchor outputs/patent_reader/${RUN}/context_anchor.json \
   --figures-manifest outputs/patent_reader/${RUN}/figures/manifest.json \
