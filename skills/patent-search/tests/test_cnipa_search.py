@@ -18,6 +18,7 @@ from cnipa_parse import (
     parse_reported_total,
     parse_reported_total_pages,
     parse_search_result_html,
+    publication_number_for_epub_query,
 )
 from cnipa_search import (
     _build_parser,
@@ -62,10 +63,13 @@ except ImportError:  # pragma: no cover
     class PlaywrightTimeoutError(Exception):
         pass
 
+from browser import browser_user_agent
 from cnipa_crawler import (
-    DEFAULT_USER_AGENT,
+    EpubSubmitError,
     FIELD_SELECTORS,
+    PagedSearchResult,
     _CLICK_NEXT_PAGE_JS,
+    _RESULT_PAGE_READY_JS,
     _FETCH_RESULT_PAGE_JS,
     advance_to_next_result_page,
     apply_epub_advanced_catalog_filter,
@@ -73,6 +77,8 @@ from cnipa_crawler import (
     fill_advanced_field,
     has_next_result_page,
     search_advanced,
+    _adapt_advanced_fields,
+    _submit_and_wait,
 )
 from derived_query import (
     join_and,
@@ -157,6 +163,25 @@ class ListResultParserTests(unittest.TestCase):
         )
         self.assertEqual(
             application_number_for_epub_query("CN201921114883.3"), "2019211148833"
+        )
+
+
+    def test_adapts_publication_number_for_epub_query(self) -> None:
+        self.assertEqual(
+            publication_number_for_epub_query("CN210476989U"), "210476989U"
+        )
+        self.assertEqual(
+            publication_number_for_epub_query("CN 210476989 U"), "210476989U"
+        )
+        self.assertEqual(
+            publication_number_for_epub_query("210476989U"), "210476989U"
+        )
+        self.assertEqual(publication_number_for_epub_query("10285"), "10285")
+        self.assertEqual(publication_number_for_epub_query("%285352%"), "%285352%")
+        self.assertEqual(publication_number_for_epub_query("CN%285352%"), "%285352%")
+        self.assertEqual(
+            _adapt_advanced_fields({"publication_number": "CN210476989U"}),
+            {"publication_number": "210476989U"},
         )
 
 
@@ -352,10 +377,134 @@ class PaginationTests(unittest.TestCase):
         self.assertNotIn("element.click()", js)
 
 
-class AdvancedInventorSearchTests(unittest.TestCase):
-    def test_user_agent_does_not_leak_a_version_placeholder(self) -> None:
-        self.assertNotIn("{version}", DEFAULT_USER_AGENT)
+class UserAgentTests(unittest.TestCase):
+    def test_uses_real_browser_ua_without_headless_token(self) -> None:
+        browser = MagicMock(spec=["new_context", "version"])
+        browser.version = "154.0.8037.97"
+        probe = browser.new_context.return_value
+        probe.new_page.return_value.evaluate.return_value = (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36"
+        )
+        ua = browser_user_agent(browser)
+        self.assertIn("Chrome/154.0.0.0", ua)
+        self.assertNotIn("HeadlessChrome", ua)
+        probe.close.assert_called_once()
 
+    def test_falls_back_to_browser_version_major(self) -> None:
+        browser = MagicMock(spec=["new_context", "version"])
+        browser.version = "154.0.8037.97"
+        browser.new_context.side_effect = RuntimeError("no context")
+        ua = browser_user_agent(browser)
+        self.assertIn("Chrome/154.0.0.0", ua)
+        self.assertNotIn("Chrome/120", ua)
+
+
+class SubmitClassificationTests(unittest.TestCase):
+    def _page(self, status: int) -> MagicMock:
+        page = MagicMock()
+        page.expect_response.return_value.__enter__.return_value.value.status = status
+        return page
+
+    @staticmethod
+    def _waited_for_result(page: MagicMock) -> bool:
+        return any(
+            call.args and call.args[0] is _RESULT_PAGE_READY_JS
+            for call in page.wait_for_function.call_args_list
+        )
+
+    def test_200_waits_scripts_then_result_page(self) -> None:
+        page = self._page(200)
+        _submit_and_wait(page, lambda: None)
+        first = page.wait_for_function.call_args_list[0].args[0]
+        self.assertIn("readyState", first)
+        page.wait_for_timeout.assert_any_call(2_000)
+        self.assertTrue(self._waited_for_result(page))
+
+    def test_400_is_waf_rejected_without_waiting(self) -> None:
+        page = self._page(400)
+        with self.assertRaises(EpubSubmitError) as ctx:
+            _submit_and_wait(page, lambda: None)
+        self.assertEqual(ctx.exception.reason, "waf_rejected")
+        self.assertEqual(ctx.exception.status, 400)
+        self.assertFalse(self._waited_for_result(page))
+
+    def test_504_is_backend_error(self) -> None:
+        with self.assertRaises(EpubSubmitError) as ctx:
+            _submit_and_wait(self._page(504), lambda: None)
+        self.assertEqual(ctx.exception.reason, "backend_error")
+
+    def test_sent_but_no_response_is_backend_timeout(self) -> None:
+        page = self._page(200)
+        page.expect_response.return_value.__exit__.side_effect = PlaywrightTimeoutError("slow")
+        with self.assertRaises(EpubSubmitError) as ctx:
+            _submit_and_wait(page, lambda: None)
+        self.assertEqual(ctx.exception.reason, "backend_timeout")
+
+    def test_click_that_sends_nothing_is_retried_once(self) -> None:
+        page = self._page(200)
+        page.expect_request.return_value.__exit__.side_effect = [
+            PlaywrightTimeoutError("no request"),
+            False,
+        ]
+        clicks = MagicMock()
+        _submit_and_wait(page, clicks)
+        self.assertEqual(clicks.call_count, 2)
+        self.assertTrue(self._waited_for_result(page))
+
+    def test_click_never_sends_is_submit_not_sent(self) -> None:
+        page = self._page(200)
+        page.expect_request.return_value.__exit__.side_effect = PlaywrightTimeoutError("no request")
+        clicks = MagicMock()
+        with self.assertRaises(EpubSubmitError) as ctx:
+            _submit_and_wait(page, clicks)
+        self.assertEqual(ctx.exception.reason, "submit_not_sent")
+        self.assertEqual(clicks.call_count, 2)
+
+
+class FreshSessionRetryTests(unittest.TestCase):
+    def _run(self, submit_side_effect):
+        pw = MagicMock()
+        pw.__enter__.return_value = pw
+        pw.__exit__.return_value = None
+        contexts = [MagicMock(), MagicMock()]
+        ok = PagedSearchResult(hits=[], pages_scanned=1, complete=True, stop_reason="last_page")
+        with patch("cnipa_crawler._launch_browser", return_value=MagicMock()), patch(
+            "cnipa_crawler._new_context", side_effect=contexts
+        ), patch("cnipa_crawler.wait_for_epub_advanced_ready"), patch(
+            "cnipa_crawler.submit_advanced_query", side_effect=submit_side_effect
+        ) as submit, patch(
+            "cnipa_crawler.collect_result_pages", return_value=ok
+        ), patch("cnipa_crawler.time.sleep") as sleep:
+            try:
+                result = search_advanced(
+                    {"class_code": SAMPLE_CLASS_IPC},
+                    playwright_factory=lambda: pw,
+                )
+            except EpubSubmitError as exc:
+                result = exc
+        return result, submit, sleep, contexts
+
+    def test_waf_rejection_retries_once_in_fresh_context(self) -> None:
+        result, submit, sleep, contexts = self._run(
+            [EpubSubmitError("waf_rejected", "x", status=400), {"class_code": "B25J"}]
+        )
+        self.assertIsInstance(result, PagedSearchResult)
+        self.assertEqual(submit.call_count, 2)
+        sleep.assert_called_once()
+        contexts[0].close.assert_called_once()
+        contexts[1].close.assert_called_once()
+
+    def test_backend_timeout_is_not_retried(self) -> None:
+        result, submit, sleep, _ = self._run(
+            [EpubSubmitError("backend_timeout", "slow")]
+        )
+        self.assertIsInstance(result, EpubSubmitError)
+        self.assertEqual(submit.call_count, 1)
+        sleep.assert_not_called()
+
+
+class AdvancedInventorSearchTests(unittest.TestCase):
     def test_selects_one_official_catalog(self) -> None:
         page = MagicMock()
         boxes = {cid: MagicMock() for cid in ("isFmgb", "isFmsq", "isXx", "isWg")}

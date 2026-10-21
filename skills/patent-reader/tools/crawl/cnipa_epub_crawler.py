@@ -9,7 +9,7 @@
 一、整体流程（单次检索）
 -------------------------------------------------------------------------------
 1. 启动浏览器（默认无头；系统 Chrome → Edge → 自带 Chromium；可用环境变量改为有界面）。
-2. 新建浏览器上下文：设定 **桌面 Chrome UA**、**zh-CN**、固定 **视口**（见 ``_new_context``），使请求形态接近普通用户浏览器。
+2. 新建浏览器上下文：用**本机浏览器自己的 UA**（只去掉 ``HeadlessChrome``，版本号保持真实）、**zh-CN**、固定 **视口**（见 ``_new_context``）。
 3. ``page.goto`` 站点首页，**wait_until="load"**。
 4. **等待首页可检索**：首页在访客到达后会先经 **前端脚本/WAF 一类逻辑**，未通过前 **不会出现** 检索输入框 ``#searchStr``。本实现通过 **周期性轮询 DOM**（每 3 秒一次，总时长见 ``EPUB_WAF_MAX_WAIT_SEC``，默认 180s）直到 ``#searchStr`` 出现；**不是**用 requests 直接 POST 能等价替代的步骤。
 5. ``page.fill`` 将关键词写入 ``#searchStr``，对 ``#indexForm`` 执行 **submit**（而非单独点按钮），并等待结果页导航 **commit**。
@@ -68,7 +68,7 @@ from cnipa_epub_parse import (
     hits_to_jsonable,
     parse_search_result_html,
 )
-from browser import launch_chromium
+from browser import browser_user_agent, launch_chromium
 from stdio_utf8 import ensure_utf8_stdio
 from patent_type import (
     TYPE_ALL,
@@ -108,10 +108,6 @@ _RESULT_PAGE_READY_JS = """(titles) => {
     }
     return false;
 }"""
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
 def _max_wait_sec() -> float:
     return float(os.environ.get("EPUB_WAF_MAX_WAIT_SEC", "180"))
 
@@ -384,17 +380,9 @@ def _launch_browser(p: Playwright) -> Browser:
 
 
 def _new_context(browser: Browser) -> BrowserContext:
-    if sys.platform == "darwin":
-        platform_token = "Macintosh; Intel Mac OS X 10_15_7"
-    elif sys.platform.startswith("linux"):
-        platform_token = "X11; Linux x86_64"
-    else:
-        platform_token = "Windows NT 10.0; Win64; x64"
-    user_agent = DEFAULT_USER_AGENT.format(version=browser.version).replace(
-        "Windows NT 10.0; Win64; x64", platform_token
-    )
+    """本机浏览器自己的 UA，只去掉 ``HeadlessChrome``；写死旧版本号时公布站拒绝表单提交。"""
     return browser.new_context(
-        user_agent=user_agent,
+        user_agent=browser_user_agent(browser),
         locale="zh-CN",
         viewport={"width": 1280, "height": 900},
     )
