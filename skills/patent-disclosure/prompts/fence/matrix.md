@@ -12,7 +12,7 @@
 
 ## 填密度（旁路专用，主路径 Step 5 不动）
 
-对「手段词 + 功效词」仍用本包 `tools/crawl/cnipa_epub_search.py`，**一词一页**，禁止调用 `patent-search` 的 `tools/`。
+对「手段词 + 功效词」仍用本包 `tools/crawl/cnipa_epub_search.py`，**一词一页**。
 
 ```bash
 python skills/patent-disclosure/tools/crawl/cnipa_epub_search.py --type invention 手段词 功效词

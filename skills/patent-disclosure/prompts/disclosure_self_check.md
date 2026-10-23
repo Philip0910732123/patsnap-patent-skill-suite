@@ -78,7 +78,8 @@
 ## 8.4 实用新型专项
 
 - [ ] 文头 **专利类型：实用新型**
-- [ ] 第三章可追溯 StructureSchema（部件/连接/布局）；`uncertain` 未写成既定公差
+- [ ] 第三章可追溯 StructureSchema（部件/连接/布局）；`uncertain` 未写成既定公差；未见件未编入 parts / 第五章
+- [ ] 已跑 `check_source_parts.py`（`SOURCE_PARTS: ok=1` 或 ERROR 已改稿）
 - [ ] 第五章为装置/结构书式，非纯方法独立点
 - [ ] 未把外观美感或算法步骤当作构造创新主线
 - [ ] 附图「如图 N」与 `figure_plan` 的 `fig`/`path` 一致（非散落 assets 临场挑选）
@@ -90,7 +91,8 @@
 
 - [ ] 文头 **专利类型：外观设计**
 - [ ] 设计要点可追溯 AppearanceSchema；只写可见造型/图案/色彩
-- [ ] 已判 `product_form` 并按 `claimed_faces` 定正投影（非默认六视）；名称用官方全称（主视图、后视图、左视图、右视图、俯视图、仰视图、立体图）；`omitted_views` 已写或为 `[]`；要点落面缺源图才用 `uncertain`；入文视图与 `figure_plan` 一致
+- [ ] 已判 `product_form` 并按 `claimed_faces` 定正投影（非默认六视）；名称用官方全称（主视图、后视图、左视图、右视图、俯视图、仰视图、立体图）；`omitted_views` 已写或为 `[]`；已锁定 `line_scope`；要点落面缺源图才用 `uncertain`；入文视图与 `figure_plan` 一致
+- [ ] 已跑 `check_design_views.py`，案件目录有 `视图检查清单.md`；漏视 / 虚线不一致 / 新事项不合格项未靠改像素或默补假面消掉
 - [ ] 入文多视/局部的 `relates_to` 已写（或可说明无需关联）；跨图造型无矛盾
 - [ ] 外观线稿已走 image_gen：存在 `design_lineart_brief`（或已有合格线稿且过 `design_view_cnipa.md` 故跳过生成）；未过 4.2 的已有线稿已重画，未走 `existing_lineart`；干净实拍与线稿均已入 md 与 Word；CAD 未入文；透视棚拍未当合格 `photo_clean`；实拍未标成 `kind: lineart`
 - [ ] 线稿为正投影（立体图角色正确）、各视比例一致、无尺寸线/中心线/阴影线；图题在图外正下方，图内无图号；画布对准 JPEG、不超过 150mm×220mm、72–300 DPI
