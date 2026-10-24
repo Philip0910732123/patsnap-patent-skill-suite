@@ -167,6 +167,10 @@ class MathToOmmlTests(unittest.TestCase):
 
         self.assertIn(r"\leq", normalize_latex_for_omml(r"a \le b"))
         self.assertIn(r"\geq", normalize_latex_for_omml(r"a \ge b"))
+        # \le / \ge 只替换完整命令，不能误伤 \leq、\geq、\left
+        self.assertEqual(normalize_latex_for_omml(r"a \leq b"), r"a \leq b")
+        self.assertEqual(normalize_latex_for_omml(r"a \geq b"), r"a \geq b")
+        self.assertNotIn("leqft", normalize_latex_for_omml(r"\max\left(0, x\right)"))
         self.assertIn("∼", normalize_latex_for_omml(r"5\sim 20"))
         xml = self._xml(r"T_{\mathrm{bed}} \ge \tau_{\mathrm{hi}}")
         self.assertIn("oMath", xml)

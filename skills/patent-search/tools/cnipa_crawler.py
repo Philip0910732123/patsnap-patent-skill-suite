@@ -15,8 +15,10 @@
 动态 cookie 才放行真实 DOM。cookie 名随机成对（形如 ``NOh8RTWx6K2dS`` / ``…T``），
 **不可硬编码**。由此有三条硬约束：
 
-- **UA 必须覆盖**（见 ``_new_context``）：无头默认 UA 含 ``HeadlessChrome``，实测直接不放行，
-  首页 DOM 仅 39 字节、检索框永不出现。
+- **UA 用本机浏览器自己的**（见 ``_new_context`` → ``browser.browser_user_agent``），只把
+  ``HeadlessChrome`` 换成 ``Chrome``。带 ``HeadlessChrome`` 时首页 DOM 仅 39 字节、检索框不出现；
+  写死旧版本号（如内核 154 却报 Chrome/120）时页面能打开，**表单提交却回 400**（6 字节正文，
+  页面变成 39 字节空白），等满超时才报错。
 - **gate 轮询必须吞掉** ``Execution context was destroyed``：自跳转会销毁执行上下文。
 - **纯 HTTP 直连不可行**：把浏览器 cookie 搬进 requests 并配齐请求头，实测只回 202 挑战页；
   该 cookie 需页面内 JS 持续参与。故必须在浏览器上下文内发请求（本模块翻页回退即如此）。
@@ -27,6 +29,18 @@ gate 用 ``wait_until="commit"`` + 短轮询，且**直接打开 /Advanced**：�
 限流绑定**会话**而非 IP：连续无间隔提交约第 3 次即被拒，且同 context 内不可恢复
 （重新 gate 实测 41.5 秒仍过不去），换新 context 才行。本模块是「单次查询 + 翻 1–3 页」，
 页间已有 ``page_delay_ms``；若将来改成多查询循环，需按会话级限流重新设计节流。
+
+提交结果按查询文档（POST ``/Dxb/…``）的状态码分三类（``EpubSubmitError.reason``）：
+
+- ``waf_rejected``：非 200 且非 5xx，防护拒绝。冷却后换新会话重试一次。
+- ``submit_not_sent``：点击后 20 秒内没发出查询就重点一次，仍不发再换新会话。
+
+检索框一出现就提交（零点几秒内）会被回 400；等页面 ``load`` 完成再静置 2 秒才提交，
+同一 IP、同一轻查询实测 200（0.6–1.3 秒返回）。
+- ``backend_error``：5xx。宽条件（如只填 ``B25J`` 这类大类）后端可能 300 秒后回 504，不重试。
+- ``backend_timeout``：限时内没有回文档，同样不重试，提示缩窄条件。
+
+gate 超时（放行耗时多在 6–15 秒，偶有超过 45 秒的长尾）也换新会话重试一次。
 """
 from __future__ import annotations
 
@@ -52,10 +66,11 @@ _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
 
-from browser import launch_chromium
+from browser import browser_user_agent, launch_chromium
 from cnipa_parse import (
     EpubSearchHit,
     application_number_for_epub_query,
+    publication_number_for_epub_query,
     parse_reported_page_size,
     parse_reported_total,
     parse_reported_total_pages,
@@ -318,10 +333,30 @@ _PAGER_PLAN_JS = """() => {
         page_size: Number.isFinite(size) && size > 0 ? size : null
     };
 }"""
-DEFAULT_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
+#: 提交后等查询文档的上限（毫秒）。宽条件时后端可能要一两分钟才回。
+_SUBMIT_RESPONSE_TIMEOUT_MS = 150_000
+#: 点击后等查询请求发出的上限（毫秒）。检索框出现时页面脚本可能还没挂好，点击会落空。
+_SUBMIT_SENT_TIMEOUT_MS = 20_000
+#: 点击前等页面加载完成的上限（毫秒）。
+_PAGE_SCRIPTS_TIMEOUT_MS = 15_000
+_PAGE_SCRIPTS_READY_JS = "() => document.readyState === 'complete'"
+#: 放行后检索框一出现就提交会被回 400：页面加载完成后再静置这么久（毫秒）才提交。
+_PAGE_SETTLE_MS = 2_000
+#: 换新会话重试前的冷却（秒）：刚被拒时立刻换会话仍会被挡在 gate 外。
+_FRESH_SESSION_COOLDOWN_SEC = 8.0
+
+
+class EpubSubmitError(RuntimeError):
+    """提交高级查询失败。
+
+    ``reason``：``waf_rejected`` / ``submit_not_sent`` / ``backend_error`` / ``backend_timeout``。
+    """
+
+    def __init__(self, reason: str, message: str, *, status: int | None = None) -> None:
+        self.reason = reason
+        self.status = status
+        shown = status if status is not None else "-"
+        super().__init__(f"reason={reason} status={shown} {message}")
 
 
 @dataclass
@@ -554,6 +589,8 @@ def _adapt_advanced_fields(fields: dict[str, str]) -> dict[str, str]:
             continue
         if field == "application_number":
             text = application_number_for_epub_query(text) or text
+        elif field == "publication_number":
+            text = publication_number_for_epub_query(text) or text
         adapted[field] = text
     return adapted
 
@@ -567,35 +604,85 @@ def submit_advanced_query(page: Page, fields: dict[str, str], *, patent_type: st
             filled[field] = value
     if not filled:
         raise ValueError("advanced search needs at least one filled field")
-    last_error: Exception | None = None
-    for attempt in range(3):
+    _submit_and_wait(page, lambda: _click_advanced_submit(page))
+    return filled
+
+
+def _is_query_request(request) -> bool:
+    try:
+        return (
+            request.resource_type == "document"
+            and request.method == "POST"
+            and "/Dxb/" in request.url
+        )
+    except Error:
+        return False
+
+
+def _is_query_document(response) -> bool:
+    try:
+        return _is_query_request(response.request)
+    except Error:
+        return False
+
+
+def _wait_page_scripts(page: Page) -> None:
+    try:
+        page.wait_for_function(_PAGE_SCRIPTS_READY_JS, timeout=_PAGE_SCRIPTS_TIMEOUT_MS)
+    except (PlaywrightTimeoutError, Error):
+        pass
+    page.wait_for_timeout(_PAGE_SETTLE_MS)
+
+
+def _click_advanced_submit(page: Page) -> None:
+    btn = page.locator("#advForm button[onclick*='adv_Query']")
+    if btn.count():
+        btn.first.click(no_wait_after=True)
+        return
+    form = page.query_selector("#advForm")
+    if form is None:
+        raise RuntimeError("高级查询未找到 #advForm")
+    submit_btn = form.query_selector("button")
+    if submit_btn is None:
+        raise RuntimeError("高级查询未找到提交按钮")
+    submit_btn.click(no_wait_after=True)
+
+
+def _submit_and_wait(page: Page, click: Callable[[], None]) -> None:
+    """点提交后先确认查询已发出，再看查询文档状态码；非 200 立即归类报错，不等满结果页超时。"""
+    _wait_page_scripts(page)
+    for attempt in (1, 2):
+        sent = False
         try:
-            with page.expect_navigation(timeout=120_000, wait_until="commit"):
-                btn = page.locator("#advForm button[onclick*='adv_Query']")
-                if btn.count():
-                    btn.first.click()
-                else:
-                    form = page.query_selector("#advForm")
-                    if form is None:
-                        raise RuntimeError("高级查询未找到 #advForm")
-                    submit_btn = form.query_selector("button")
-                    if submit_btn is None:
-                        raise RuntimeError("高级查询未找到提交按钮")
-                    submit_btn.click()
-            _wait_result_page_ready(page)
-            return filled
-        except (Error, PlaywrightTimeoutError) as exc:
-            last_error = exc
-            if page.title().strip() in (EPUB_TITLE_RESULT, EPUB_TITLE_NO_HIT):
-                try:
-                    _wait_result_page_ready(page)
-                    return filled
-                except (Error, PlaywrightTimeoutError):
-                    pass
-            page.wait_for_timeout(1_000 * (attempt + 1))
-    if last_error:
-        raise last_error
-    raise RuntimeError("CNIPA advanced search did not start")
+            with page.expect_response(
+                _is_query_document, timeout=_SUBMIT_RESPONSE_TIMEOUT_MS
+            ) as info:
+                with page.expect_request(_is_query_request, timeout=_SUBMIT_SENT_TIMEOUT_MS):
+                    click()
+                sent = True
+            break
+        except PlaywrightTimeoutError as exc:
+            if sent:
+                raise EpubSubmitError(
+                    "backend_timeout",
+                    f"{_SUBMIT_RESPONSE_TIMEOUT_MS // 1000} 秒内公布站未返回结果，请缩窄检索条件",
+                ) from exc
+            if attempt == 2:
+                raise EpubSubmitError(
+                    "submit_not_sent", "点击提交后未发出查询，页面脚本可能未就绪"
+                ) from exc
+            print("EPUB_SEARCH_NOTE: submit_not_sent reclick=1", file=sys.stderr, flush=True)
+            _wait_page_scripts(page)
+    status = int(info.value.status)
+    if status >= 500:
+        raise EpubSubmitError(
+            "backend_error", "公布站后端出错或超时，请缩窄检索条件", status=status
+        )
+    if status != 200:
+        raise EpubSubmitError(
+            "waf_rejected", "公布站防护拒绝了本次提交", status=status
+        )
+    _wait_result_page_ready(page)
 
 
 def submit_advanced_inventor_search(page: Page, inventor: str, *, catalog_id: str | None = None) -> dict[str, str]:
@@ -603,9 +690,12 @@ def submit_advanced_inventor_search(page: Page, inventor: str, *, catalog_id: st
         apply_epub_advanced_catalog_filter(page, catalog_id)
         if not fill_advanced_field(page, "inventor", inventor):
             raise RuntimeError("CNIPA advanced-search inventor field #e72 missing")
-        with page.expect_navigation(timeout=120_000, wait_until="commit"):
-            page.locator("#advForm button[onclick*='adv_Query']").click()
-        _wait_result_page_ready(page)
+        _submit_and_wait(
+            page,
+            lambda: page.locator("#advForm button[onclick*='adv_Query']").click(
+                no_wait_after=True
+            ),
+        )
         return {"inventor": inventor.strip()}
     return submit_advanced_query(page, {"inventor": inventor}, patent_type=TYPE_ALL)
 
@@ -931,18 +1021,17 @@ def _launch_browser(p: Playwright) -> Browser:
 
 
 def _new_context(browser: Browser) -> BrowserContext:
-    if sys.platform == "darwin":
-        platform_token = "Macintosh; Intel Mac OS X 10_15_7"
-    elif sys.platform.startswith("linux"):
-        platform_token = "X11; Linux x86_64"
-    else:
-        platform_token = "Windows NT 10.0; Win64; x64"
-    user_agent = DEFAULT_USER_AGENT.replace("Windows NT 10.0; Win64; x64", platform_token)
     return browser.new_context(
-        user_agent=user_agent,
+        user_agent=browser_user_agent(browser),
         locale="zh-CN",
         viewport={"width": 1280, "height": 900},
     )
+
+
+def _worth_fresh_session(exc: Exception) -> bool:
+    if isinstance(exc, EpubSubmitError):
+        return exc.reason in ("waf_rejected", "submit_not_sent")
+    return isinstance(exc, TimeoutError)
 
 
 def search_advanced(
@@ -964,20 +1053,35 @@ def search_advanced(
     pw_gen = playwright_factory or sync_playwright
     with pw_gen() as p:
         browser = _launch_browser(p)
-        context = _new_context(browser)
         try:
-            page = context.new_page()
-            # 直接去高级查询页：实测无需先过首页即可放行，省掉一次整页加载。
-            wait_for_epub_advanced_ready(page)
-            filled = submit_advanced_query(page, fields, patent_type=patent_type)
-            result = collect_result_pages(
-                page,
-                max_pages=page_limit,
-                want_complete=want_complete,
-                cfg=settings,
-            )
-            result.filled_fields = filled
-            return result
+            for attempt in (1, 2):
+                context = _new_context(browser)
+                try:
+                    page = context.new_page()
+                    # 直接去高级查询页：实测无需先过首页即可放行，省掉一次整页加载。
+                    wait_for_epub_advanced_ready(page)
+                    filled = submit_advanced_query(page, fields, patent_type=patent_type)
+                    result = collect_result_pages(
+                        page,
+                        max_pages=page_limit,
+                        want_complete=want_complete,
+                        cfg=settings,
+                    )
+                    result.filled_fields = filled
+                    return result
+                except (TimeoutError, EpubSubmitError) as exc:
+                    if attempt == 2 or not _worth_fresh_session(exc):
+                        raise
+                    cause = getattr(exc, "reason", "gate_timeout")
+                    print(
+                        f"EPUB_SEARCH_NOTE: fresh_session_retry cause={cause} "
+                        f"cooldown_s={_FRESH_SESSION_COOLDOWN_SEC:g}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                finally:
+                    context.close()
+                time.sleep(_FRESH_SESSION_COOLDOWN_SEC)
         finally:
-            context.close()
             browser.close()
+    raise RuntimeError("CNIPA advanced search did not start")

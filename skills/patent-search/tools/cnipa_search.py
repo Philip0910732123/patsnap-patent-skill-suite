@@ -168,11 +168,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--abstract",
         default="",
-        help="摘要/简要说明；可用 and / or / not（运算符前后空格）",
+        help="摘要/简要说明；只用 and / or / not（运算符前后空格），不要用 ? / %",
     )
-    parser.add_argument("--class", dest="class_code", default="", help="分类号 IPC/LOC")
+    parser.add_argument("--class", dest="class_code", default="", help="分类号 IPC/LOC 前缀，不要两头加 %")
     parser.add_argument("--application-number", default="", help="申请号")
-    parser.add_argument("--publication-number", default="", help="公开号/公告号")
+    parser.add_argument("--publication-number", default="", help="公开号/公告号；填表时去掉 CN/ZL 前缀")
     parser.add_argument(
         "--type",
         default=TYPE_ALL,
