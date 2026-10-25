@@ -36,6 +36,13 @@
    - `theme_summary` 写当前结构主题；`patent_type: utility_model`；`mode: disclosure`  
 5. **结构线稿（必做）**：**`Read`** `prompts/image_gen.md`，再 **`Read`** `prompts/structure_lineart_assist.md`（轮廓后必 **`Read`** `structure_lineart_compose.md`）。不问用户。先 `image_gen.py` 看 `mode`：已有合格线稿则入文、不再生成整张；否则图生图（CAD/实拍可作参考）或文生图。按 `parts` 写出子 SVG 再拼总图，再 overlay 件号；叠标后须读图按名称核对引出线（改锚点 YAML 重叠标，最多 2 轮）。禁止自创件号。勿与外观 `design_lineart_*` 混用。仅 `PATENT_SKILL_SKIP_LINEART=1` 或用户明确不要线稿才跳过。  
 6. `uncertain` 不得写成确定保护点；跨图对不上的写入 `uncertain`
+7. **禁止生成未披露部件**：`parts` 只收源图 / 原文能指认的件。看不清、材料没有的进 `uncertain`，**不要**写入第五章欲保护点，也不要编进权要式句子。成文前跑门禁：
+
+```bash
+python skills/patent-disclosure/tools/check_source_parts.py --case-dir outputs/{案件标识} --write
+```
+
+`SOURCE_PARTS: ok=0` 先改 schema / figure_plan / 正文。幻觉件进 `uncertain`。
 
 ## 多轮
 
