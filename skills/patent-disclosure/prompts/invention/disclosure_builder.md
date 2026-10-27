@@ -110,7 +110,7 @@ Agent **落盘时**即采用上述命名，并在回复中写明路径，便于�
 ### 成文前：`formula_plan`（有公式时必做）
 
 1. **先扫材料**：扫描根内有 `.tex` 时：案件目录已有 **`tex_formula_inventory.md`** 则 **只 Read 该清单** 勾选，不必把 `.tex` 再载入成文上下文；无清单则按 **`prompts/tex_scan.md`** 补做。公式优先从源码/清单勾选。编号公式、Word 正文中的式、PDF 插式一律列入候选（出处 + 一句话在算什么）。对照 **已选专利点 / 3.3 / 3.4** 勾选进 `equations`；不采用的写入 `omitted`（`ref` + `reason`），禁止静默丢掉。  
-2. 在案件目录写出 **`formula_plan.yaml`**：每条式标记 **`origin: source`（材料转录）或 `origin: agent`（技能补写）**。source 填 `source_ref`、`source_kind`（`tex` / `md` / `word_text` / `pdf_text` / `other`）与原文 `latex`；只做分隔符等机械体例时把原材料写入 `original_latex`。**禁止**把材料公式改写成范式库模板。  
+2. 在案件目录写出 **`formula_plan.yaml`**：每条式标记 **`origin: source`（材料转录）或 `origin: agent`（技能补写）**。source 填 `source_ref`、`source_kind`（`tex` / `md` / `word_text` / `pdf_text` / `other`）与原文 `latex`；只做分隔符等机械体例时把原材料写入 `original_latex`。材料式是否改写，见公式正/反例表「选题」行。  
    - 有 `.tex` 链则 `source_kind: tex`（默认已核）。  
    - 仅从 `pdf_to_md` 文本层抄的式子：`source_kind: pdf_text`，`verified: false`。  
    - **`verified: false` 的式子可写进 3.4.1 转述，不得当作 Fk / 创造性依据**；不因此停笔、不问用户补源码。  
@@ -121,29 +121,11 @@ Agent **落盘时**即采用上述命名，并在回复中写明路径，便于�
 
 覆盖范式（仅 agent）：环境变量 `PATENT_FORMULA_PARADIGMS`，或案件目录 `formula_paradigms.yaml`。
 
-### 符号表先行
+### 符号、上下标与分隔符
 
-- 撰写 **3.4.1** 或全文含 LaTeX 时，**先写符号与变量定义**（可按（1）任务/对象下标、（2）节点/环境下标、（3）标量与向量分组），每项至少含：**符号、含义、下标含义（如 \(i\)=任务、\(j\)=节点）、量纲或取值范围**。
-- 其后公式、**3.5 参数表**、**第六章实施例**中出现的符号须与符号表 **同形、同义**。
-- **禁止同一字母多义**：例如任务侧权重用 \(b\)，节点侧饱和度应改用 \(g\)、\(h\) 等其它字母，勿任务/节点共用 \(b\) 表示不同物理量。
-- **来源优先于范式**：材料已有的主式 `origin: source` 保真转录，**禁止**为套 `paradigms.yaml` 而改写。仅材料没有的式才 `origin: agent` 并从范式库选题；禁止未登记的装饰性「论文风」自创式。agent 平滑用范式 `ema_smooth` + 符号 \(A\)，**禁止** `\tilde`/`\hat`/`\bar` 等装饰音。source 式若原文含装饰音，可保留或仅在成文层改独立符号并填写 `original_latex`。
+撰写 **3.4.1** 前先写符号表：每项含符号、含义、下标含义、量纲或取值范围。其后公式、3.5、实施例与符号表同形同义。上下标、分隔符、防零除、同一字母、材料式是否改写，以 **`template_reference.md` 公式正/反例表**为准。
 
-### 下标与上标
-
-- **资源维度/类型标签**（cpu、mem、io、peak 等）一律写入 **下标**，维度名用 `\mathrm{cpu}`、`\mathrm{mem}` 等正体，例如 `b_{i,\mathrm{cpu}}`、`a_{j,\mathrm{mem}}`。
-- **禁止**用 `^{cpu}`、`^{mem}`、`^{io}` 等 **上标** 表示维度或字段名（易被读作幂次，亦不符合专利正文常见写法）。
-- **上标仅用于**：幂次、转置、序号、撇号类标记、以及归一化标记 `^{\mathrm{norm}}`（若选用）；**下标用于**对象编号与维度标签。
-
-### LaTeX 分隔与写法（全文统一）
-
-- **行内公式**：全文统一 **`\(...\)`** 或 **`$...$`** 二选一，**不得混用**。
-- **块级公式**：全文统一 **`\[...\]`** 或 **`$$...$$`** 二选一，**不得混用**。
-- **禁止普通括号冒充行内公式**：含 `\mathrm`、`\,`、`_{` 的式子必须写成 `\(M_{\mathrm{total}}\)`，**禁止**写成 `(M_{\mathrm{total}})`。后者 Word 当纯文本（常带拼写红线）。Markdown 预览会把 `\(` 显示成 `(`，**不得**据此删掉反斜杠。
-- **出 Word 的稿**：必须是**当次交付的时间戳定稿 md**。改正分隔符后须重跑 `mermaid_render.py` / `md_to_docx.py`。**禁止**用未改正的 `draft.md` 出交付 `.docx`（`mermaid_render` 遇普通括号包 LaTeX 会写 md、跳过 Word，见 `LATEX_DELIM:`）。定稿前可跑 `python tools/latex_delimiters.py -i <定稿.md>`。
-- 比较符优先写 `\leq`、`\geq`（定稿工具可兼容 `\le`/`\ge`，正文仍推荐 `\leq`/`\geq`）。
-- 块级公式尽量 **单行写完**；需编号时用 `\tag{1}` 或正文写「式 (1)」，**全文择一**并保持体例一致。
-- 逻辑连接词（「且」「或」）优先写在公式 **外** 的中文叙述中；若必须写入公式内，用 `\land`/`\lor`，**避免** `\text{且}` 等复杂文本命令（定稿渲染易失败）。
-- 防零除：用与分母 **同量纲** 的 \(\varepsilon\)；**禁止**在容量类分母上裸写 `max(1, b_{\mathrm{mem}})`。
+出 Word 只用当次时间戳定稿 md。分隔符改正后重跑 `mermaid_render.py` / `md_to_docx.py`。`LATEX_DELIM: hits=` 大于 0 时，先改成 `\(...\)` 再对已写出的时间戳 md 重跑。定稿前可跑 `python tools/latex_delimiters.py -i <定稿.md>`。
 
 ### 跨节一致
 
@@ -161,21 +143,21 @@ Agent **落盘时**即采用上述命名，并在回复中写明路径，便于�
 1. **Markdown**：定稿 `.md` **保留** `` ```mermaid`` 围栏源码；能出图时含 ``<!-- ![图示](…png) -->`` 注释引用（由 `mermaid_render.py` 生成）。
 2. **Word**：对上一文件执行 `md_to_docx.py`，或使用一条命令。有序列表按 Markdown 分组从 1 重计，勿手工改 Word 编号去「接上一章」。
 
-`python tools/mermaid_render.py -i <含图示的草稿.md> -o "<案件名_YYYYMMDDHHmmss>.md"`（默认在同目录生成**同名** `.docx`；可用 `--docx` 指定路径，`--no-docx` 跳过 Word。Word 失败时见终端提示的手动命令。**默认不出公式 PNG、不安装 matplotlib**。）
+`python tools/mermaid_render.py -i <含图示的草稿.md> -o "<案件名_YYYYMMDDHHmmss>.md"`（默认在同目录生成**同名** `.docx`；可用 `--docx` 指定路径，`--no-docx` 跳过 Word。Word 失败时见终端提示的手动命令。默认不预渲染公式 PNG，不安装 matplotlib。）
 
-（mermaid 出图：Playwright + 内置 `tools/vendor/mermaid.min.js`，与查新共用浏览器，见 `tools/browser.py`。**禁止**为出图执行 `npm` / `npx` / `playwright install chromium`（除非 `--probe` 显示本机无 Chrome/Edge 且无自带 Chromium）。无可用浏览器时**仍须交付 .md**（围栏保留）；Word 可生成但框图可能为代码块，告知用户补浏览器后可重跑本脚本。）
+（mermaid 出图：Playwright + 内置 `tools/vendor/mermaid.min.js`，与查新共用浏览器，见 `tools/browser.py`。`--probe` 显示本机无 Chrome/Edge 且无自带 Chromium 时，才允许一次 `playwright install chromium`。无可用浏览器时仍交付 .md；Word 可生成但框图可能为代码块，告知用户补浏览器后可重跑本脚本。）
 
-**判读（stderr ≠ 失败）**：以 **退出码 0** 和机读前缀为准：`MERMAID: ok=`、`DOCX: ok=1`、`MATH:`、`omml_text_fallback=`、`LATEX_DELIM:`。PowerShell 红字 / `NativeCommandError` / 中文乱码 **不是**失败；**禁止**因此重跑安装或认定 Word 未生成。`DOCX: ok=0` 才按终端里的手动 `md_to_docx.py` 命令补做。`LATEX_DELIM: hits=` 大于 0 或 `DOCX: ok=0 reason=latex_delim`：**Word 未生成**，须把行内公式改成 `\(...\)` 后对**已写出的时间戳 md**重跑，禁止用未改正的 `draft.md` 出交付 Word。
+**判读（stderr ≠ 失败）**：以 **退出码 0** 和机读前缀为准：`MERMAID: ok=`、`DOCX: ok=1`、`MATH:`、`omml_text_fallback=`、`LATEX_DELIM:`。PowerShell 红字 / `NativeCommandError` / 中文乱码不算失败。`DOCX: ok=0` 才按终端里的手动 `md_to_docx.py` 命令补做。`LATEX_DELIM: hits=` 大于 0 或 `DOCX: ok=0 reason=latex_delim`：Word 未生成，把行内公式改成 `\(...\)` 后对**已写出的时间戳 md**重跑。
 
 ### OMML 失败后的公式 PNG（可选，默认关）
 
-Word 公式主路径为 `latex2mathml` → 可编辑 OMML；失败则 **留 LaTeX 原文**。定稿默认 **不** 预渲染公式 PNG，**禁止**为此自动 `pip install matplotlib`。
+Word 公式主路径为 `latex2mathml` → 可编辑 OMML；失败则 **留 LaTeX 原文**。定稿默认不预渲染公式 PNG。
 
 若 stderr 出现 `omml_text_fallback=` 或 `OMML_FAIL:` 或 `MATH: ... text=`（`text`>0）：
 
 1. **先完成交付**（仍须写明 `.md` / `.docx` 路径）。
 2. 在 **`## 交付后请确认`** 第 1 条以 **`(a)` 标签**反问 **一次**（请回 **是** / **否**），列出失败公式摘要；说明须额外安装 matplotlib（约 100MB，含 numpy 等），图片在 Word 中不可再编辑。若同轮 STEP 也待问，按 `prompts/delivery_confirm.md`「同一轮至多一个是/否」**只问本条**，STEP 改为陈述。细则同该文件。
-3. 未得 **是**（含未回复）：保持当前 docx，**禁止**安装 matplotlib。
+3. 未得 **是**（含未回复）：保持当前 docx，不安装 matplotlib。
 4. 用户回 **是**：本会话最多一次 `pip install matplotlib`（已装则跳过），再对**同一份已定稿 md** 覆盖同名 Word（不必重跑 mermaid）：
 
    `python tools/md_to_docx.py -i "<同名.md>" -o "<同名.docx>" --base-dir "<md 所在目录>" --math-render`

@@ -107,6 +107,47 @@ def launch_chromium(
     raise RuntimeError(f"无法启动浏览器（{detail}）。{hint}") from None
 
 
+def _platform_token() -> str:
+    if sys.platform == "darwin":
+        return "Macintosh; Intel Mac OS X 10_15_7"
+    if sys.platform.startswith("linux"):
+        return "X11; Linux x86_64"
+    return "Windows NT 10.0; Win64; x64"
+
+
+def browser_user_agent(browser: Any) -> str:
+    """本机浏览器自己的 UA，只把无头标记 ``HeadlessChrome`` 换成 ``Chrome``。
+
+    版本号须与真实内核一致：写死旧版本时，公布站放行页面却拒绝表单提交（HTTP 400）。
+    """
+    cached = getattr(browser, "_patent_skill_ua", None)
+    if isinstance(cached, str) and cached:
+        return cached
+    ua: Any = ""
+    try:
+        probe = browser.new_context()
+        try:
+            ua = probe.new_page().evaluate("navigator.userAgent")
+        finally:
+            probe.close()
+    except Exception:
+        ua = ""
+    if not isinstance(ua, str) or "Mozilla/" not in ua:
+        major = str(getattr(browser, "version", "") or "").split(".", 1)[0]
+        if not major.isdigit():
+            major = "0"
+        ua = (
+            f"Mozilla/5.0 ({_platform_token()}) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{major}.0.0.0 Safari/537.36"
+        )
+    ua = ua.replace("HeadlessChrome/", "Chrome/")
+    try:
+        setattr(browser, "_patent_skill_ua", ua)
+    except Exception:
+        pass
+    return ua
+
+
 def install_package_hint() -> str:
     return "pip install playwright  （或 pip install -r requirements.txt）"
 

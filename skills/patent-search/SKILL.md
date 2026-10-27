@@ -8,7 +8,7 @@ user-invocable: false
 
 通用专利著录检索，不是「个人清单技能」。个人公开清单只是一种用法。
 
-**先 `Read` `prompts/patent_search.md`。** 用户给单图或权要时再 `Read` `prompts/derived_query.md`。
+公布站高级查询（发明人 / 申请人 / 分类号 / 名称 / 摘要等）。个人公开清单只是一种用法。单图或权要可先抽关键字再查。对照表派工时可按特征精排，另出覆盖旁路，**不改**列表报告。
 
 ## 检索渠道（双通道）
 
@@ -85,9 +85,9 @@ python skills/patent-search/tools/cnipa_search.py --abstract "折叠 and 杯盖"
 python skills/patent-search/tools/cnipa_search.py --inventor "姓名" --complete
 ```
 
-单图必须 `--type design|utility_model|invention`，不能 `all`。用户没说类型时看图推断并加 `--type-inferred`。权要按文本选类型，可用 `all`。
+单独拷走本包时：`python tools/cnipa_search.py …`。改版式只动 `tools/emit_search_report.py`。机读前缀：`EPUB_SEARCH_MD:` / `EPUB_SEARCH_JSON:` / `EPUB_SEARCH_NOTE:` / `EPUB_SEARCH_INCOMPLETE:`。对话里给出 Markdown 路径。
 
-单独拷走本包时：`python tools/cnipa_search.py …`。
+## 护栏
 
 ## 结果落盘
 

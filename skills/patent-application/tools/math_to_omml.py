@@ -3,7 +3,6 @@
 
 技术路线：``latex2mathml`` 转 MathML，再映射为 ``m:oMath`` / ``m:oMathPara``，
 供 ``python-docx`` 挂到段落。本文件是交底包 ``skills/patent-disclosure/tools/math_to_omml.py`` 的**包内副本**。
-申请文件禁止跨包 import 交底工具。
 
 复杂宏失败时由调用方回退 PNG/原文。
 
@@ -61,7 +60,8 @@ def normalize_latex_for_omml(latex: str) -> str:
     body = re.sub(r"\\label\s*\{[^{}]*\}", "", body)
     body = body.replace("\n", " ")
     body = re.sub(r"[ \t]{2,}", " ", body).strip()
-    body = body.replace(r"\le", r"\leq").replace(r"\ge", r"\geq")
+    body = re.sub(r"\\le(?![A-Za-z])", r"\\leq", body)
+    body = re.sub(r"\\ge(?![A-Za-z])", r"\\geq", body)
     body = body.replace(r"\land", r"\wedge").replace(r"\lor", r"\vee")
     body = re.sub(r"\\(big+|Big+|left|right|bigl|bigr|Bigl|Bigr)\b", "", body)
     for cmd, repl in _LATEX_CMD_TO_REPL:
