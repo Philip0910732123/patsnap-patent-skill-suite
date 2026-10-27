@@ -41,58 +41,41 @@ jobs:
             echo "Upstream has new commits."
           fi
 
-      - name: Attempt merge
+      - name: Merge upstream (keep our changes on conflict)
         id: merge
         if: steps.check.outputs.has_changes == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git merge upstream/main --no-edit; then
+
+          # Strategy: -X ours keeps our modifications when files conflict
+          # This handles content conflicts automatically
+          if git merge upstream/main -X ours --no-edit; then
             echo "merge_success=true" >> $GITHUB_OUTPUT
-            echo "Merge succeeded, will push directly."
+            echo "Merge succeeded (no conflict or auto-resolved with ours strategy)."
           else
+            # modify/delete conflict: upstream deleted a file we modified
+            # Solution: keep our version of all conflicted files
             echo "merge_success=false" >> $GITHUB_OUTPUT
-            echo "Merge conflict detected, will create PR."
-            git merge --abort
+            echo "Merge has modify/delete conflicts, resolving by keeping our version."
+            git checkout --ours .
+            git add -A
+            git commit --no-edit
           fi
 
-      - name: Push (no conflict)
+      - name: Push to main
         if: steps.check.outputs.has_changes == 'true' && steps.merge.outputs.merge_success == 'true'
         run: |
           git push origin main
 
-      - name: Create PR (conflict)
+      - name: Push resolved merge to main
         if: steps.check.outputs.has_changes == 'true' && steps.merge.outputs.merge_success == 'false'
         run: |
-          BRANCH="sync-upstream-$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH"
-          git merge upstream/main --no-edit || true
-          git add -A
-          git commit -m "sync: merge upstream (conflicts need review)" || true
-          git push origin "$BRANCH"
-          # Create label if not exists
-          gh label create "sync-upstream" --color "1f883d" --description "Auto-sync from upstream" 2>/dev/null || true
-          # Create PR
-          gh pr create \
-            --title "Sync upstream: new commits from handsomestWei/patent-disclosure-skill" \
-            --body "## Upstream has new updates
+          git push origin main
 
-          The upstream repository has new commits that conflict with this fork's modifications.
-
-          ### What needs manual review
-          Please review the conflicted files, resolve conflicts, then merge this PR.
-
-          **Conflict reason**: This repo modified upstream files (search layer rewrite, new sub-skills, etc.) which now conflict with upstream changes.
-
-          ### Suggested resolution
-          - For files this repo already modified (e.g. \`skills/patent-search/\`): keep this repo's version
-          - For new files added by upstream: accept upstream's version
-          - Resolve conflicts and merge this PR
-
-          ---
-          *This PR was auto-created by GitHub Actions*" \
-            --base main \
-            --head "$BRANCH" \
-            --label "sync-upstream"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Summary
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          echo "Sync complete. Upstream changes merged with ours strategy."
+          echo "Our modifications (search rewrite, new sub-skills, MCP integration) are preserved."
+          echo "New upstream files (bug fixes, new features) are accepted."
