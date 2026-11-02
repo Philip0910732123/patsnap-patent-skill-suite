@@ -120,11 +120,15 @@ def epub_patent_url(pub: str) -> str:
 
 
 def write_description_paragraphs_json(
-    out_path: Path, paragraphs: dict[str, str], *, pub: str = ""
+    out_path: Path,
+    paragraphs: dict[str, str],
+    *,
+    pub: str = "",
+    source_url: str = "",
 ) -> Path:
     payload = {
         "pub_number": pub,
-        "source_url": epub_patent_url(pub),
+        "source_url": source_url or epub_patent_url(pub),
         "count": len(paragraphs),
         "paragraphs": {k: paragraphs[k] for k in sorted(paragraphs)},
     }

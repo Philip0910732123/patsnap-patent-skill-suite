@@ -16,22 +16,47 @@ DEFAULTS: dict[str, Any] = {
 
 _INT_KEYS = frozenset(DEFAULTS)
 
+GOOGLE_PATENTS_DEFAULTS: dict[str, Any] = {
+    "num": 10,
+    "timeout_s": 20,
+}
+
 
 def config_path() -> Path:
     return Path(__file__).resolve().parents[1] / "config.yaml"
 
 
-def load_search_config(path: Path | None = None) -> dict[str, Any]:
-    cfg = dict(DEFAULTS)
+def _load_yaml(path: Path | None) -> dict[str, Any]:
     target = path or config_path()
     if not target.is_file():
-        return cfg
+        return {}
     try:
         import yaml
     except ImportError:
-        return cfg
+        return {}
     data = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
-    if not isinstance(data, dict):
+    return data if isinstance(data, dict) else {}
+
+
+def load_google_patents_config(path: Path | None = None) -> dict[str, Any]:
+    cfg = dict(GOOGLE_PATENTS_DEFAULTS)
+    section = _load_yaml(path).get("google_patents")
+    if not isinstance(section, dict):
+        return cfg
+    for key in GOOGLE_PATENTS_DEFAULTS:
+        if key not in section:
+            continue
+        try:
+            cfg[key] = int(section[key])
+        except (TypeError, ValueError):
+            continue
+    return cfg
+
+
+def load_search_config(path: Path | None = None) -> dict[str, Any]:
+    cfg = dict(DEFAULTS)
+    data = _load_yaml(path)
+    if not data:
         return cfg
     for key in _INT_KEYS:
         if key not in data:

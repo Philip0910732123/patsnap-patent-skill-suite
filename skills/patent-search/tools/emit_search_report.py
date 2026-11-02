@@ -61,6 +61,33 @@ _TYPE_LABELS = {
     "all": "全部",
 }
 
+GOOGLE_SOURCE_ID = "google_patents"
+
+_GOOGLE_QUERY_LABELS = (
+    ("keywords", "关键词"),
+    ("title", "名称（TI）"),
+    ("abstract", "摘要（AB）"),
+    ("claims", "权利要求（CL）"),
+    ("cpc", "CPC"),
+    ("assignees", "申请人"),
+    ("inventors", "发明人"),
+    ("countries", "局别"),
+    ("patent_type", "类型"),
+    ("status", "状态"),
+    ("language", "语言"),
+    ("date_range", "日期"),
+    ("sort", "排序"),
+    ("num", "每页条数"),
+    ("page", "页码"),
+    ("note", "检索意图"),
+    ("q", "实际查询式"),
+)
+
+_GOOGLE_TYPE_LABELS = {"PATENT": "专利（含发明、实用新型）", "DESIGN": "外观设计"}
+_GOOGLE_STATUS_LABELS = {"GRANT": "授权", "APPLICATION": "申请公开"}
+_GOOGLE_SORT_LABELS = {"new": "最新优先", "old": "最早优先"}
+_DATE_FIELD_LABELS = {"priority": "优先权日", "filing": "申请日", "publication": "公开日"}
+
 _IDENTITY_LABELS = {
     "verified_inventor_metadata": "已由官方发明人著录核实",
     "inventor_query_and_applicant": "发明人查询与申请人共同匹配",
@@ -139,6 +166,8 @@ def render_search_report(
     when = when or datetime.now()
     stamp = when.strftime("%Y-%m-%d %H:%M:%S")
     name = report_name or report_filename(when)
+    if payload.get("source_id") == GOOGLE_SOURCE_ID:
+        return _render_google_report(payload, stamp=stamp, name=name)
     query = payload.get("query") or {}
     hits = list(payload.get("hits") or [])
     note = _text(payload.get("completeness_note"), empty="")
@@ -269,6 +298,82 @@ def render_search_report(
             lines.append(f"- **其他公布/授权记录**：{'；'.join(bits)}")
         abstract = _text(row.get("abstract"), empty="")
         lines.append(f"- **摘要**：{abstract or '（结果页未提供摘要）'}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _google_query_value(key: str, query: dict[str, Any]) -> str:
+    value = query.get(key)
+    if key == "patent_type":
+        return _GOOGLE_TYPE_LABELS.get(str(value), _text(value))
+    if key == "status":
+        return _GOOGLE_STATUS_LABELS.get(str(value), _text(value))
+    if key == "sort":
+        return _GOOGLE_SORT_LABELS.get(str(value), _text(value))
+    if key == "date_range":
+        after, before = query.get("after") or "", query.get("before") or ""
+        if not (after or before):
+            return ""
+        label = _DATE_FIELD_LABELS.get(str(query.get("date_field") or ""), _text(query.get("date_field")))
+        return f"{label} {after or '…'} 至 {before or '…'}"
+    if key == "q" and value:
+        return f"`{value}`"
+    return _text(value, empty="")
+
+
+def _render_google_report(payload: dict[str, Any], *, stamp: str, name: str) -> str:
+    query = payload.get("query") or {}
+    hits = list(payload.get("hits") or [])
+    lines = [
+        f"# 海外检索 {Path(name).stem}",
+        "",
+        f"- **查询时间**：{stamp}",
+        f"- **数据源**：Google Patents（{_text(payload.get('source'), empty='https://patents.google.com/')}）",
+        "- **范围**：仅已公开/公告文献；按同族去重；非英文文献按 Google 机器翻译检索",
+        f"- **命中**：共 {_text(payload.get('total_results'))} 条；本页第 {_text(payload.get('page'))} 页，"
+        f"返回 {_text(payload.get('returned'), empty='0')} 条",
+        f"- **完整性**：{_text(payload.get('completeness_note'))}",
+    ]
+    web = str(payload.get("web_url") or "").strip()
+    if web:
+        lines.append(f"- **网页核对**：[在 Google Patents 打开同一检索]({web})")
+    lines.extend(["", "## 查询条件", "", "| 字段 | 值 |", "| --- | --- |"])
+    for key, label in _GOOGLE_QUERY_LABELS:
+        value = _google_query_value(key, query)
+        if value:
+            lines.append(f"| {label} | {_md_escape(value)} |")
+    lines.extend(
+        [
+            "",
+            "> 命中片段只是 Google 摘取的匹配句，不等于摘要；判断技术方案须打开详情页或交解读包取全文。",
+            "",
+            "## 检索结果",
+            "",
+        ]
+    )
+    if not hits:
+        lines.append("本次无命中。")
+        lines.append("")
+        return "\n".join(lines)
+    for index, row in enumerate(hits, start=1):
+        link = row.get("link")
+        lines.append(f"### {index}. {_link(row.get('title'), link)}")
+        lines.append("")
+        lines.append(f"- **公开号**：{_text(row.get('pub_number'))}")
+        lines.append(f"- **局别**：{_text(row.get('country'))}")
+        lines.append(f"- **申请人**：{_text(row.get('applicant'))}")
+        lines.append(f"- **发明人**：{_text(row.get('inventors'))}")
+        lines.append(f"- **优先权日**：{_text(row.get('priority_date'))}")
+        lines.append(f"- **申请日**：{_text(row.get('filing_date'))}")
+        lines.append(f"- **公开日**：{_text(row.get('publication_date'))}")
+        if row.get("grant_date"):
+            lines.append(f"- **授权日**：{_text(row.get('grant_date'))}")
+        family = row.get("family_countries") or []
+        if family:
+            lines.append(f"- **同族局别**：{_text(family)}")
+        if row.get("pdf_url"):
+            lines.append(f"- **PDF**：{_link('下载', row.get('pdf_url'))}")
+        lines.append(f"- **命中片段**：{_text(row.get('snippet'), empty='（无）')}")
         lines.append("")
     return "\n".join(lines)
 

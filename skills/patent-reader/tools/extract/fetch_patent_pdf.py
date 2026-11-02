@@ -4,7 +4,8 @@
 
 默认链路（见 references/patent_pdf_sources.yaml）：
   1) 用户已给本地 PDF / --url → 直接用
-  2) Google Patents 详情页 zh / en / 无后缀三页并行，读到 citation_pdf_url 即断开 → CDN 下载
+  2) Google Patents 详情页 zh / en / 无后缀三页并行（海外号只拉 /en 一页），读到 citation_pdf_url 即断开 → CDN 下载
+     任一页 HTTP 429 / 503 即报「限流」，不重试
   3) 已知示例 CDN（仅兜底）
   4) 仍失败：请用户提供 PDF
 
@@ -42,7 +43,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from patent_type import resolve_reader_patent_type
+from patent_type import infer_jurisdiction, resolve_reader_patent_type
 
 UA = "Mozilla/5.0 (compatible; patent-disclosure-skill/1.0)"
 # 总时限（秒）：解析详情页 + 下载 PDF。连不上 Google 时尽快失败，不干等。
@@ -52,6 +53,7 @@ PAGE_TIMEOUT = 8
 # PDF 单次 socket 读写超时（不是总时长；总时长受 DEFAULT_TIMEOUT 约束）
 PDF_SOCKET_TIMEOUT = 20
 PDF_ATTEMPTS = 2
+BLOCK_STATUS = frozenset({429, 503})
 _PAGE_CHUNK = 8192
 _PDF_CHUNK = 64 * 1024
 _SSL_CTX = ssl.create_default_context()
@@ -103,6 +105,9 @@ def load_known_cdn_examples(yaml_path: Path | None = None) -> dict[str, str]:
 
 def google_patent_page_urls(pub: str) -> list[str]:
     p = normalize_pub(pub)
+    jurisdiction = infer_jurisdiction(p)
+    if jurisdiction and jurisdiction != "CN":
+        return [f"https://patents.google.com/patent/{p}/en"]
     return [
         f"https://patents.google.com/patent/{p}/zh",
         f"https://patents.google.com/patent/{p}/en",
@@ -290,6 +295,12 @@ def resolve_pdf_url(
         log.append(f"known_cdn_example:{known[pub_u]}")
         return known[pub_u], "known_cdn_examples", log
 
+    blocked = next((c for c in codes if c in BLOCK_STATUS), None)
+    if blocked is not None:
+        raise FileNotFoundError(
+            f"Google Patents 限流（HTTP {blocked}），已停止请求；稍后再试，或请用户提供 PDF。attempts="
+            + " | ".join(log)
+        )
     if no_cdn == 0 and 404 in codes:
         reason = (
             f"Google Patents 未收录 {pub_u}（新公开的专利通常 1–3 周后才上 Google）。"

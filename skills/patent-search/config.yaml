@@ -20,3 +20,10 @@ http_error_backoff_ms: 1500
 
 # 仅当页面探测不到 #pageSize /「每页 N 条」时回退（站点当前默认常为 3）
 page_size: 3
+
+# 海外检索（gp_search.py → Google Patents）。不重试：遇 429 / 503 / 拦截页即结束本轮。
+google_patents:
+  # 每页条数（1–100）；限流按请求计，条数不影响被封概率
+  num: 10
+  # 单次请求超时（秒）
+  timeout_s: 20

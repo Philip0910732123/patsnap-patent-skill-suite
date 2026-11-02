@@ -28,8 +28,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 | **交底** | 挖专利点 → 查新 → 成稿 → 迭代（发明 / 实用新型 / 外观）；首篇定稿后可做保护型 1+N 专利布局 | `skills/patent-disclosure/SKILL.md` |
 | **申请文件** | 已有交底 → 权要 / 说明书 / 摘要 / 附图 | `skills/patent-application/SKILL.md` |
 | **案卷** | 按发明人/工程师给的材料一趟写出交底书和申请文件 | `skills/patent-docket/SKILL.md` |
-| **检索** | 公布站高级查询（发明人/申请人/分类号/名称/摘要等）；单图或权要可先抽关键字再查 | `skills/patent-search/SKILL.md` |
-| **解读** | 公开号 / PDF / 全文 → 通俗笔记 + 图谱 | `skills/patent-reader/SKILL.md` |
+| **检索** | 公布站高级查询（发明人/申请人/分类号/名称/摘要等）；单图或权要可先抽关键字再查；点名海外时用 Google Patents 查美欧日韩等 | `skills/patent-search/SKILL.md` |
+| **解读** | 公开号（中国或海外）/ PDF / 全文 → 通俗笔记 + 图谱 | `skills/patent-reader/SKILL.md` |
 | **对照表** | 独权特征 vs 对比文件 / 产品 / 标准，逐格证据与强弱（须点名；底稿，非法律意见） | `skills/patent-chart/SKILL.md` |
 | **专利地图** | 已解读入库的案例摊成五种图（语义地形） | `skills/patent-map/SKILL.md` |
 | **审查答复** | 审查意见问答与草稿；库薄时引导案例入库 | `skills/patent-oa/SKILL.md` |

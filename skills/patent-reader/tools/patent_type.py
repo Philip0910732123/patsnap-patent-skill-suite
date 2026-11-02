@@ -91,6 +91,10 @@ _KIND_LETTER_TO_TYPE: dict[str, str] = {
 
 _PUB_TAIL_RE = re.compile(r"(?i)^(?:CN|ZL)?\d{7,12}([ABYCUS])\d?$")
 
+# 海外公开号：局别两位字母 + 可选 D（美国外观）+ 号码 + 种类码
+_OVERSEAS_PUB_RE = re.compile(r"^([A-Z]{2})(D?)(\d[\d\-]*)([A-Z])(\d?)$")
+_OVERSEAS_UTILITY_MODEL_KINDS = frozenset({"U", "Y"})
+
 
 def normalize_patent_type(raw: str | None, *, default: str = TYPE_ALL) -> str:
     if raw is None or not str(raw).strip():
@@ -129,6 +133,33 @@ def infer_patent_type_from_pub(pub: str | None) -> str | None:
     return _KIND_LETTER_TO_TYPE.get(letter)
 
 
+def infer_jurisdiction(pub: str | None) -> str | None:
+    """公开号 → 局别（``CN`` / ``US`` / ``EP`` / ``WO`` / ``JP`` / ``KR`` …）；无法识别返回 None。"""
+    s = normalize_pub_number(pub)
+    if not s:
+        return None
+    if _PUB_TAIL_RE.match(s):
+        return "CN"
+    m = re.match(r"^([A-Z]{2})D?\d", s)
+    return m.group(1) if m else None
+
+
+def infer_overseas_patent_type(pub: str | None) -> str | None:
+    """海外公开号种类码 → 三大类（只用于选解读挂钩，不等同各局法律类型）。
+
+    美国 ``USD…`` 或种类码 S → 外观；种类码 U / Y（日、韩、德等实用新型）→ 实用新型；其余 → 发明。
+    """
+    s = normalize_pub_number(pub)
+    m = _OVERSEAS_PUB_RE.match(s)
+    if not m or m.group(1) == "CN":
+        return None
+    if m.group(2) == "D" or m.group(4) == "S":
+        return TYPE_DESIGN
+    if m.group(4) in _OVERSEAS_UTILITY_MODEL_KINDS:
+        return TYPE_UTILITY_MODEL
+    return TYPE_INVENTION
+
+
 def infer_patent_type_from_biblio(text: str | None) -> str | None:
     """从著录/扉页/摘要等短文本关键词推断（弱于公开号种类码）。"""
     if not text or not str(text).strip():
@@ -158,6 +189,7 @@ def resolve_reader_patent_type(
         "label_zh": None,
         "source": None,
         "pub": normalize_pub_number(pub) or None,
+        "jurisdiction": infer_jurisdiction(pub),
         "confidence": "none",
     }
     if user_declared and str(user_declared).strip():
@@ -184,6 +216,18 @@ def resolve_reader_patent_type(
                 "label_zh": TYPE_LABEL_ZH[from_pub],
                 "source": "pub_kind_code",
                 "confidence": "high",
+            }
+        )
+        return out
+
+    from_overseas = infer_overseas_patent_type(pub)
+    if from_overseas:
+        out.update(
+            {
+                "patent_type": from_overseas,
+                "label_zh": TYPE_LABEL_ZH[from_overseas],
+                "source": "pub_kind_code_overseas",
+                "confidence": "medium",
             }
         )
         return out

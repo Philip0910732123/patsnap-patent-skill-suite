@@ -9,13 +9,15 @@ skills/patent-reader/tools/
 ├── shared/     # 共享配置与路径
 ├── extract/    # PDF / 全文 / 附图取证
 ├── analyze/    # 权要树、线索包、校验与 lint
-└── vault/      # Obsidian 入库、Canvas、关联与库环境
+├── vault/      # Obsidian 入库、Canvas、关联与库环境
+└── google_patents/  # Google Patents 详情页 / 检索（与 patent-search 同名目录逐字一致）
 ```
 
 | 子目录 | 文件 | 作用 |
 |--------|------|------|
 | `shared/` | `common.py` | 领域路由、IPC 提示、路径与环境变量 |
 | `extract/` | `fetch_patent_pdf.py` | **按公开号下载全文 PDF**（源表 `references/patent_pdf_sources.yaml`；状态含自动判别的 `patent_type`） |
+| | `fetch_gp_fulltext.py` | **海外公开号取全文**（US / EP / WO / JP / KR…）：一次 Google Patents 详情页请求，直接写出权要树、说明书段落等中间文件并下载 PDF；机翻文献另存原文；限流退出码 4，不重试 |
 | | `fetch_design_views.py` | **外观设计视图取证**（国知局会话 + 详情页 `/imgs` 序号探测；无 PDF CDN 时用） |
 | | `extract_patent_text.py` | 全文/PDF 取证 |
 | | `figure_extract.py` | caption+bbox 裁切 + 质量门 |
@@ -44,6 +46,7 @@ skills/patent-reader/tools/
 | | `materialize_public_clues.py` | 对已有解读补跑线索落地 |
 | | `check_obsidian_env.py` | 探测/持久化库路径 |
 | | `setup_obsidian_vault.py` | 库初始化（开发/排障） |
+| `google_patents/` | `query.py` / `client.py` / `results.py` / `detail.py` / `api.py` | 查询串构造、单次请求与限流识别、检索结果与详情页解析；改动须同步 `skills/patent-search/tools/google_patents/` |
 | 根 | `requirements.txt` | 可选依赖（`pymupdf`） |
 
 库内模板：`assets/obsidian/`（CSS、`*.base.yaml` 源稿、索引页；拷库时写成 `.base`）。
@@ -65,6 +68,10 @@ python skills/patent-reader/tools/extract/fetch_patent_pdf.py \
 python skills/patent-reader/tools/extract/extract_patent_text.py \
   -i outputs/patent_reader/demo/source/CN119961390A.pdf \
   -o outputs/patent_reader/demo --pub-number CN119961390A
+
+# 海外公开号：一次请求取结构化全文（替代 fetch_patent_pdf + extract_patent_text）
+python skills/patent-reader/tools/extract/fetch_gp_fulltext.py \
+  --pub US11450918B2 -o outputs/patent_reader/demo_us
 
 # 外观设计（CN…S）：常无 PDF CDN → 用国知局视图取证
 pip install -r skills/patent-reader/tools/crawl/requirements-cnipa.txt

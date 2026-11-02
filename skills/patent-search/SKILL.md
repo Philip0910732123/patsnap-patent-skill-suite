@@ -8,7 +8,7 @@ user-invocable: false
 
 通用专利著录检索，不是「个人清单技能」。个人公开清单只是一种用法。
 
-公布站高级查询（发明人 / 申请人 / 分类号 / 名称 / 摘要等）。个人公开清单只是一种用法。单图或权要可先抽关键字再查。对照表派工时可按特征精排，另出覆盖旁路，**不改**列表报告。
+公布站高级查询（发明人 / 申请人 / 分类号 / 名称 / 摘要等）。个人公开清单只是一种用法。单图或权要可先抽关键字再查。对照表派工时可按特征精排，另出覆盖旁路，**不改**列表报告。用户点名海外 / 指定局时，走 Google Patents 海外检索旁路（`gp_search.py`）。
 
 ## 检索渠道（双通道）
 
@@ -83,9 +83,12 @@ python skills/patent-search/tools/cnipa_search.py --inventor "姓名" --applican
 python skills/patent-search/tools/cnipa_search.py --title "数据处理" --abstract "吸附 and 再生" --class B01J20 --max-pages 2
 python skills/patent-search/tools/cnipa_search.py --abstract "折叠 and 杯盖" --type design --derived-from image --type-inferred --derived-note "折叠杯盖"
 python skills/patent-search/tools/cnipa_search.py --inventor "姓名" --complete
+python skills/patent-search/tools/gp_search.py -q "(battery OR cell) (thermal runaway)" --country US,EP,JP --after 2020
 ```
 
-单独拷走本包时：`python tools/cnipa_search.py …`。改版式只动 `tools/emit_search_report.py`。机读前缀：`EPUB_SEARCH_MD:` / `EPUB_SEARCH_JSON:` / `EPUB_SEARCH_NOTE:` / `EPUB_SEARCH_INCOMPLETE:`。对话里给出 Markdown 路径。
+单独拷走本包时：`python tools/cnipa_search.py …` / `python tools/gp_search.py …`。改版式只动 `tools/emit_search_report.py`。机读前缀：`EPUB_SEARCH_MD:` / `EPUB_SEARCH_JSON:` / `EPUB_SEARCH_NOTE:` / `EPUB_SEARCH_INCOMPLETE:`；海外 `GP_SEARCH_MD:` / `GP_SEARCH_JSON:` / `GP_SEARCH_NOTE:` / `GP_SEARCH_ERROR:`。对话里给出 Markdown 路径。
+
+`tools/google_patents/` 与解读包同名目录内容一致，改动须同步两处。
 
 ## 护栏
 

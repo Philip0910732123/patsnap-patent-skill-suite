@@ -9,8 +9,6 @@ import tempfile
 from pathlib import Path
 
 PKG = Path(__file__).resolve().parents[1]
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 sys.path.insert(0, str(PKG / "tools"))
 
 from shared.common import load_ipc_application_hints
@@ -37,6 +35,37 @@ from vault.write_patent_obsidian_note import (
     harvest_narrative_from_note,
     merge_glossary_candidates,
 )
+
+
+def _note(
+    claim: str,
+    terms: str,
+    features: str,
+    *,
+    title: str = "t",
+    nav: str = "- [[x|图谱]]",
+    intro: tuple[str, str, str] = ("a", "b", "c"),
+    diff: str = "d",
+    advice: str = "1. x",
+    scene: str = "y",
+    appendix_heading: str = "十、附录",
+    appendix: str = "### A. IPC\n\nx",
+    disclaimer: str = "z",
+) -> str:
+    """十一节解读笔记骨架；只传第四节权项正文、第五节术语行、第六节特征行。"""
+    one, two, three = intro
+    return (
+        f"# {title}\n\n## Obsidian 导航\n\n{nav}\n\n"
+        f"## 一、一句话\n\n{one}\n\n## 二、连贯叙事\n\n{two}\n\n## 三、权利要求树\n\n{three}\n\n"
+        f"## 四、独立权利要求精读\n\n> [!patent-claim] 权利要求 1\n\n{claim}\n\n"
+        "## 五、专利内术语表\n\n| 术语 | 本文含义/位置 | 备注 |\n|------|---------------|------|\n"
+        f"{terms}\n\n"
+        "## 六、特征—说明书—附图对照\n\n| 特征 | 说明书位置 | 附图 |\n|------|------------|------|\n"
+        f"{features}\n\n"
+        f"## 七、和现有技术的差别\n\n{diff}\n\n## 八、阅读建议\n\n{advice}\n\n"
+        f"## 九、技术应用场景\n\n{scene}\n\n## {appendix_heading}\n\n{appendix}\n\n"
+        f"## 十一、免责声明\n\n{disclaimer}\n"
+    )
 
 
 def test_ipc_hints_count() -> None:
@@ -249,74 +278,22 @@ def test_materialize_prefers_agent_summary_no_script_by_default() -> None:
 def test_inject_clue_annotations_l1_l4() -> None:
     from vault.clue_vault import inject_clue_annotations
 
-    note = """# 专利解读：测试
-
-## Obsidian 导航
-
-- [[x_图谱.canvas|专利族图谱]]
-
-## 一、一句话
-
-一句话正文。
-
-## 二、连贯叙事
-
-叙事。
-
-## 三、权利要求树
-
-表。
-
-## 四、独立权利要求精读
-
-> [!patent-claim] 权利要求 1
-
-> 【CN1·权利要求1】含陶瓷涂层与基膜。
-
-| 特征 | 大白话 | 说明书依据 |
-|------|--------|------------|
-| F1 双面陶瓷涂层结构 | 上下陶瓷 | 发明 |
-| F6 拉伸后陶瓷涂覆 | 仍要涂层 | 权1 |
-
-## 五、专利内术语表
-
-| 术语 | 本文含义/位置 | 备注 |
-|------|---------------|------|
-| [[Research/术语/陶瓷涂层|陶瓷涂层]] | 涂层 | — |
-
-## 六、特征—说明书—附图对照
-
-| 特征 | 说明书位置 | 附图 |
-|------|------------|------|
-| 陶瓷 | 背景 | — |
-
-## 七、和现有技术的差别
-
-差别。
-
-## 八、阅读建议
-
-1. 建议。
-
-## 九、技术应用场景
-
-> [!grounding] 应用场景
-> 场景。
-
-## 十、附录：行业坐标与公开线索
-
-### A. IPC
-
-x
-
-### B. 公开检索线索
-
-old
-
-## 十一、免责声明
-
-免责。
-"""
+    note = _note(
+        "> 【CN1·权利要求1】含陶瓷涂层与基膜。\n\n"
+        "| 特征 | 大白话 | 说明书依据 |\n|------|--------|------------|\n"
+        "| F1 双面陶瓷涂层结构 | 上下陶瓷 | 发明 |\n| F6 拉伸后陶瓷涂覆 | 仍要涂层 | 权1 |",
+        "| [[Research/术语/陶瓷涂层|陶瓷涂层]] | 涂层 | — |",
+        "| 陶瓷 | 背景 | — |",
+        title="专利解读：测试",
+        nav="- [[x_图谱.canvas|专利族图谱]]",
+        intro=("一句话正文。", "叙事。", "表。"),
+        diff="差别。",
+        advice="1. 建议。",
+        scene="> [!grounding] 应用场景\n> 场景。",
+        appendix_heading="十、附录：行业坐标与公开线索",
+        appendix="### A. IPC\n\nx\n\n### B. 公开检索线索\n\nold",
+        disclaimer="免责。",
+    )
     clues = [
         {
             "title": "陶瓷产品页",
@@ -357,65 +334,11 @@ def test_agent_anchor_fits_preferred() -> None:
     """有 anchor_fits 时，旁注必须用 Agent 贴合句，而非启发式首句。"""
     from vault.clue_vault import inject_clue_annotations
 
-    note = """# t
-
-## Obsidian 导航
-
-- [[x|图谱]]
-
-## 一、一句话
-
-a
-
-## 二、连贯叙事
-
-b
-
-## 三、权利要求树
-
-c
-
-## 四、独立权利要求精读
-
-> [!patent-claim] 权利要求 1
-
-> 含陶瓷与纤维素涂覆层。
-
-## 五、专利内术语表
-
-| 术语 | 本文含义/位置 | 备注 |
-|------|---------------|------|
-| 纤维素 | 涂层 | — |
-
-## 六、特征—说明书—附图对照
-
-| 特征 | 说明书位置 | 附图 |
-|------|------------|------|
-| 涂覆层含陶瓷和纤维素 | 权1 | 图1 |
-| 纤维素分子量 5万-250万 | 权2 | — |
-
-## 七、和现有技术的差别
-
-d
-
-## 八、阅读建议
-
-1. x
-
-## 九、技术应用场景
-
-y
-
-## 十、附录
-
-### A. IPC
-
-x
-
-## 十一、免责声明
-
-z
-"""
+    note = _note(
+        "> 含陶瓷与纤维素涂覆层。",
+        "| 纤维素 | 涂层 | — |",
+        "| 涂覆层含陶瓷和纤维素 | 权1 | 图1 |\n| 纤维素分子量 5万-250万 | 权2 | — |",
+    )
     clues = [
         {
             "title": "公开页A",
@@ -459,65 +382,11 @@ def test_claim_and_term_callouts_distill() -> None:
     """权项/术语 warning：按锚点抽贴合句，且 L2 不再硬编码「湿法」话术。"""
     from vault.clue_vault import inject_clue_annotations
 
-    note = """# t
-
-## Obsidian 导航
-
-- [[x|图谱]]
-
-## 一、一句话
-
-a
-
-## 二、连贯叙事
-
-b
-
-## 三、权利要求树
-
-c
-
-## 四、独立权利要求精读
-
-> [!patent-claim] 权利要求 1
-
-> 【CN·权利要求1】含陶瓷涂层与基膜，采用碱尿素溶解纤维素后涂布。
-
-## 五、专利内术语表
-
-| 术语 | 本文含义/位置 | 备注 |
-|------|---------------|------|
-| [[Research/术语/陶瓷涂层|陶瓷涂层]] | 涂层 | — |
-| 纤维素 | 涂层组分 | — |
-
-## 六、特征—说明书—附图对照
-
-| 特征 | 说明书位置 | 附图 |
-|------|------------|------|
-| 陶瓷涂层 | 权1 | 图1 |
-
-## 七、和现有技术的差别
-
-d
-
-## 八、阅读建议
-
-1. x
-
-## 九、技术应用场景
-
-y
-
-## 十、附录
-
-### A. IPC
-
-x
-
-## 十一、免责声明
-
-z
-"""
+    note = _note(
+        "> 【CN·权利要求1】含陶瓷涂层与基膜，采用碱尿素溶解纤维素后涂布。",
+        "| [[Research/术语/陶瓷涂层|陶瓷涂层]] | 涂层 | — |\n| 纤维素 | 涂层组分 | — |",
+        "| 陶瓷涂层 | 权1 | 图1 |",
+    )
     clues = [
         {
             "title": "纤维素涂布与陶瓷隔膜公开页",
@@ -548,67 +417,12 @@ def test_feature_callout_dedupes_clue_and_distills() -> None:
     """多特征命中同一线索时：线索只出现一次，并为特征抽不同贴合句。"""
     from vault.clue_vault import inject_clue_annotations
 
-    note = """# t
-
-## Obsidian 导航
-
-- [[x|图谱]]
-
-## 一、一句话
-
-a
-
-## 二、连贯叙事
-
-b
-
-## 三、权利要求树
-
-c
-
-## 四、独立权利要求精读
-
-> [!patent-claim] 权利要求 1
-
-> 隔膜。
-
-## 五、专利内术语表
-
-| 术语 | 本文含义/位置 | 备注 |
-|------|---------------|------|
-| 纤维素 | 涂层 | — |
-
-## 六、特征—说明书—附图对照
-
-| 特征 | 说明书位置 | 附图 |
-|------|------------|------|
-| 基膜+至少一面涂覆层 | 权1 | 图1 |
-| 涂覆层含陶瓷和纤维素 | 权1 | 图1 |
-| 纤维素分子量 5万-250万 | 权2 | — |
-| 非衍生化碱尿素溶解 | 权3 | 图2 |
-
-## 七、和现有技术的差别
-
-d
-
-## 八、阅读建议
-
-1. x
-
-## 九、技术应用场景
-
-y
-
-## 十、附录
-
-### A. IPC
-
-x
-
-## 十一、免责声明
-
-z
-"""
+    note = _note(
+        "> 隔膜。",
+        "| 纤维素 | 涂层 | — |",
+        "| 基膜+至少一面涂覆层 | 权1 | 图1 |\n| 涂覆层含陶瓷和纤维素 | 权1 | 图1 |\n"
+        "| 纤维素分子量 5万-250万 | 权2 | — |\n| 非衍生化碱尿素溶解 | 权3 | 图2 |",
+    )
     clues = [
         {
             "title": "一种纤维素涂布锂离子电池隔膜的制备方法（碱尿素溶）",
@@ -646,66 +460,11 @@ def test_feature_callout_drops_orphan_fids() -> None:
     """第六节只有特征名、无 F 编号时：丢弃 sidecar 空号 F1–F6，改挂表内名称。"""
     from vault.clue_vault import inject_clue_annotations, match_clue_to_note
 
-    note = """# t
-
-## Obsidian 导航
-
-- [[x|图谱]]
-
-## 一、一句话
-
-a
-
-## 二、连贯叙事
-
-b
-
-## 三、权利要求树
-
-c
-
-## 四、独立权利要求精读
-
-> [!patent-claim] 权利要求 1
-
-> 【CN·权利要求1】水性PVDF浆料涂覆隔膜。
-
-## 五、专利内术语表
-
-| 术语 | 本文含义/位置 | 备注 |
-|------|---------------|------|
-| PVDF | 涂层聚合物 | — |
-
-## 六、特征—说明书—附图对照
-
-| 特征 | 说明书位置 | 附图 |
-|------|------------|------|
-| 循环性能对比 | 表2 | 图1 |
-| 水性球状形貌 | 成孔机理 | 图2 |
-| 油性海绵状对比 | 溶剂对比 | 图3 |
-
-## 七、和现有技术的差别
-
-d
-
-## 八、阅读建议
-
-1. x
-
-## 九、技术应用场景
-
-y
-
-## 十、附录
-
-### A. IPC
-
-x
-
-## 十一、免责声明
-
-z
-"""
+    note = _note(
+        "> 【CN·权利要求1】水性PVDF浆料涂覆隔膜。",
+        "| PVDF | 涂层聚合物 | — |",
+        "| 循环性能对比 | 表2 | 图1 |\n| 水性球状形貌 | 成孔机理 | 图2 |\n| 油性海绵状对比 | 溶剂对比 | 图3 |",
+    )
     clues = [
         {
             "title": "水系PVDF产品页",
@@ -1199,34 +958,9 @@ def test_harvest_glossary_from_note_section5() -> None:
 
 
 def main() -> int:
-    test_ipc_hints_count()
-    test_glossary_pair_quotes()
-    test_nav_merge()
-    test_lint_heading_not_bare_feature()
-    test_glossary_index_ignores_tags()
-    test_stub_collision()
-    test_validate_public_clues()
-    test_filter_clues_max_three()
-    test_sanitize_clue_summary_nav_and_glyphs()
-    test_materialize_prefers_agent_summary_no_script_by_default()
-    test_inject_clue_annotations_l1_l4()
-    test_feature_callout_drops_orphan_fids()
-    test_clue_appendix_and_annotate()
-    test_optional_path_not_cwd()
-    test_obsidian_detect_and_env_disable()
-    test_bootstrap_creates_appearance()
-    test_repo_obsidian_bases_are_yaml_templates()
-    test_evidence_label_zh_in_frontmatter()
-    test_enrich_merges_tech_effect()
-    test_glossary_stub_fills_section5_definition()
-    test_harvest_glossary_from_note_section5()
-    test_harvest_narrative_from_note()
-    test_sanitize_user_facing_titles()
-    test_glossary_backlink_backslash_dedupe()
-    test_spurious_patent_note_detect()
-    test_render_claim_tree_markdown()
-    test_claim_tree_multi_parent_and_validate()
-    test_claim_deltas_agent_preferred()
+    for name, fn in list(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            fn()
     print("OK debt_and_enhancement smoke")
     return 0
 
