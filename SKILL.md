@@ -3,7 +3,7 @@ name: patsnap-patent-skill-suite
 description: "中国专利全流程技能套件（智慧芽 MCP 增强）：挖掘专利点与编写交底书（发明/实用/外观），把已有交底改写成申请文件四件套，也可按材料交底申请一起做，著录检索支持智慧芽 MCP 语义检索与同族/引证分析，通俗解读专利，对照审查口径出政策简报，辅助审查答复。| China patents skill suite (PatSnap MCP enhanced): mine patent points and draft disclosures, rewrite an existing disclosure into application documents, search patents via PatSnap MCP with semantic search and family/citation analysis, explain patents, brief examination-policy changes, and assist office-action responses."
 version: "1.0.0"
 user-invocable: true
-argument-hint: "[可选：项目路径 / 交底书 / 申请底稿 / 交底申请一起做 / 专利检索 / 专利号或 PDF / 专利地图 / 专利围栏 / 政策简报 / 审查答复 / 对照表]"
+argument-hint: "[可选：项目路径 / 交底书 / 申请底稿 / 发明分案 / 交底申请一起做 / 专利检索 / 专利号或 PDF / 专利地图 / 专利围栏 / 政策简报 / 审查答复 / 对照表]"
 allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 ---
 
@@ -26,7 +26,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, WebSearch, Bash
 | 能力 | 做什么 | 入口 |
 |------|--------|------|
 | **交底** | 挖专利点 → 查新 → 成稿 → 迭代（发明 / 实用新型 / 外观）；首篇定稿后可做保护型 1+N 专利布局 | `skills/patent-disclosure/SKILL.md` |
-| **申请文件** | 已有交底 → 权要 / 说明书 / 摘要 / 附图 | `skills/patent-application/SKILL.md` |
+| **申请文件** | 已有交底 → 权要 / 说明书 / 摘要 / 附图；发明母案与分案规划、原始披露核对 | `skills/patent-application/SKILL.md` |
 | **案卷** | 按发明人/工程师给的材料一趟写出交底书和申请文件 | `skills/patent-docket/SKILL.md` |
 | **检索** | 公布站高级查询（发明人/申请人/分类号/名称/摘要等）；单图或权要可先抽关键字再查；点名海外时用 Google Patents 查美欧日韩等 | `skills/patent-search/SKILL.md` |
 | **解读** | 公开号（中国或海外）/ PDF / 全文 → 通俗笔记 + 图谱 | `skills/patent-reader/SKILL.md` |
